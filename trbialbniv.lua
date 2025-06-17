@@ -69,7 +69,6 @@ function Fluent:SetTheme(themeName)
         return
     end
     self.CurrentTheme = themeName
-    -- Theme update logic would go here
 end
 
 -- Notification system
@@ -88,7 +87,7 @@ function Fluent:Notify(options)
         Position = UDim2.new(1, 10, 1, -50),
         Size = UDim2.new(0, 300, 0, 100),
         AnchorPoint = Vector2.new(1, 1),
-        Parent = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("FluentUI") or LocalPlayer:WaitForChild("PlayerGui")
+        Parent = LocalPlayer:WaitForChild("PlayerGui")
     })
     
     local titleLabel = Create("TextLabel", {
@@ -130,7 +129,6 @@ function Fluent:Notify(options)
             Text = subContent,
             TextColor3 = self.Themes[self.CurrentTheme].SubText,
             TextSize = 12,
-            TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = notificationFrame
         })
@@ -163,10 +161,6 @@ function Fluent:CreateWindow(options)
         ResetOnSpawn = false,
         Parent = LocalPlayer:WaitForChild("PlayerGui")
     })
-    
-    if window.Acrylic then
-        -- Acrylic effect would go here (requires more complex implementation)
-    end
     
     local mainFrame = Create("Frame", {
         Name = "MainWindow",
@@ -314,27 +308,6 @@ function Fluent:CreateWindow(options)
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             updateInput(input)
-        end
-    end)
-    
-    -- Minimize functionality
-    local minimized = false
-    local originalSize = mainFrame.Size
-    
-    local function toggleMinimize()
-        minimized = not minimized
-        if minimized then
-            Tween(mainFrame, {Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset, 0, 30)}, 0.2)
-            Tween(tabContent, {Visible = false}, 0.2)
-        else
-            Tween(mainFrame, {Size = originalSize}, 0.2)
-            Tween(tabContent, {Visible = true}, 0.2)
-        end
-    end
-    
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if not gameProcessed and input.KeyCode == window.MinimizeKey then
-            toggleMinimize()
         end
     end)
     
@@ -988,17 +961,6 @@ function Fluent:CreateWindow(options)
             
             dropdownButton.MouseButton1Click:Connect(toggleDropdown)
             
-            -- Close dropdown when clicking outside
-            local function onInputBegan(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 and dropdownList.Visible then
-                    if not dropdownButton:IsAncestorOf(input.Parent) and not dropdownList:IsAncestorOf(input.Parent) then
-                        toggleDropdown()
-                    end
-                end
-            end
-            
-            UserInputService.InputBegan:Connect(onInputBegan)
-            
             -- Initialize
             createDropdownOptions()
             updateDropdownText()
@@ -1084,7 +1046,7 @@ function Fluent:CreateWindow(options)
                 BorderColor3 = self.Themes[window.Theme].Border,
                 BorderSizePixel = 1,
                 Position = UDim2.new(0, 0, 0, 0),
-                Size = UDim2.new(1, 0, 1, 0),
+                Size = UDim2.new(1, 0, 1, -colorpicker.Transparency * 20),
                 Parent = Create("Frame", {
                     Name = "TransparencyContainer",
                     BackgroundColor3 = Color3.fromRGB(175, 175, 175),
@@ -1095,289 +1057,14 @@ function Fluent:CreateWindow(options)
                 })
             })
             
-            transparencyFrame.Size = UDim2.new(1, 0, 1, -colorpicker.Transparency * transparencyFrame.AbsoluteSize.Y)
-            
-            local pickerFrame
-            local hueSlider
-            local transparencySlider
-            
-            local function openColorPicker()
-                if pickerFrame then pickerFrame:Destroy() end
-                
-                pickerFrame = Create("Frame", {
-                    Name = "ColorPickerFrame",
-                    BackgroundColor3 = self.Themes[window.Theme].Secondary,
-                    BorderColor3 = self.Themes[window.Theme].Border,
-                    BorderSizePixel = 1,
-                    Position = UDim2.new(0, 0, 0, 25),
-                    Size = UDim2.new(1, 0, 0, 200),
-                    Visible = false,
-                    Parent = colorpickerFrame
+            previewFrame.MouseButton1Click:Connect(function()
+                -- Color picker would open here
+                Fluent:Notify({
+                    Title = "Color Picker",
+                    Content = "Color picker would open here",
+                    Duration = 2
                 })
-                
-                local saturationValuePicker = Create("ImageButton", {
-                    Name = "SaturationValuePicker",
-                    BackgroundColor3 = Color3.fromHSV(0, 1, 1),
-                    BorderSizePixel = 0,
-                    Position = UDim2.new(0, 5, 0, 5),
-                    Size = UDim2.new(0, 150, 0, 150),
-                    Parent = pickerFrame
-                })
-                
-                local saturationValueCursor = Create("Frame", {
-                    Name = "Cursor",
-                    BackgroundTransparency = 1,
-                    BorderColor3 = Color3.fromRGB(255, 255, 255),
-                    BorderSizePixel = 1,
-                    Position = UDim2.new(0.5, -3, 0.5, -3),
-                    Size = UDim2.new(0, 6, 0, 6),
-                    Parent = saturationValuePicker
-                })
-                
-                hueSlider = Create("Frame", {
-                    Name = "HueSlider",
-                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                    BorderSizePixel = 0,
-                    Position = UDim2.new(0, 160, 0, 5),
-                    Size = UDim2.new(0, 20, 0, 150),
-                    Parent = pickerFrame
-                })
-                
-                local hueGradient = Create("UIGradient", {
-                    Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-                        ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 0, 255)),
-                        ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 0, 255)),
-                        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
-                        ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 255, 0)),
-                        ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 255, 0)),
-                        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
-                    }),
-                    Rotation = 90,
-                    Parent = hueSlider
-                })
-                
-                local hueCursor = Create("Frame", {
-                    Name = "Cursor",
-                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                    BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    BorderSizePixel = 1,
-                    Position = UDim2.new(0.5, -5, 0, -3),
-                    Size = UDim2.new(0, 10, 0, 6),
-                    AnchorPoint = Vector2.new(0.5, 0),
-                    Parent = hueSlider
-                })
-                
-                transparencySlider = Create("Frame", {
-                    Name = "TransparencySlider",
-                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                    BorderSizePixel = 0,
-                    Position = UDim2.new(0, 185, 0, 5),
-                    Size = UDim2.new(0, 20, 0, 150),
-                    Parent = pickerFrame
-                })
-                
-                local transparencyGradient = Create("UIGradient", {
-                    Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-                        ColorSequenceKeypoint.new(1, Color3.fromRGB(175, 175, 175))
-                    }),
-                    Rotation = 90,
-                    Parent = transparencySlider
-                })
-                
-                local transparencyCursor = Create("Frame", {
-                    Name = "Cursor",
-                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                    BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    BorderSizePixel = 1,
-                    Position = UDim2.new(0.5, -5, 0, -3),
-                    Size = UDim2.new(0, 10, 0, 6),
-                    AnchorPoint = Vector2.new(0.5, 0),
-                    Parent = transparencySlider
-                })
-                
-                local rgbInput = Create("TextBox", {
-                    Name = "RGBInput",
-                    BackgroundColor3 = self.Themes[window.Theme].Secondary,
-                    BorderColor3 = self.Themes[window.Theme].Border,
-                    BorderSizePixel = 1,
-                    Position = UDim2.new(0, 5, 0, 160),
-                    Size = UDim2.new(0.5, -10, 0, 30),
-                    Font = Enum.Font.Gotham,
-                    PlaceholderText = "RGB (0-255, 0-255, 0-255)",
-                    Text = "",
-                    TextColor3 = self.Themes[window.Theme].Text,
-                    TextSize = 14,
-                    Parent = pickerFrame
-                })
-                
-                local hexInput = Create("TextBox", {
-                    Name = "HexInput",
-                    BackgroundColor3 = self.Themes[window.Theme].Secondary,
-                    BorderColor3 = self.Themes[window.Theme].Border,
-                    BorderSizePixel = 1,
-                    Position = UDim2.new(0.5, 5, 0, 160),
-                    Size = UDim2.new(0.5, -10, 0, 30),
-                    Font = Enum.Font.Gotham,
-                    PlaceholderText = "Hex (#FFFFFF)",
-                    Text = "",
-                    TextColor3 = self.Themes[window.Theme].Text,
-                    TextSize = 14,
-                    Parent = pickerFrame
-                })
-                
-                local function updateColor(h, s, v, a)
-                    h = h or 0
-                    s = s or 1
-                    v = v or 1
-                    a = a or colorpicker.Transparency
-                    
-                    local color = Color3.fromHSV(h, s, v)
-                    Fluent.Options[id].Value = color
-                    Fluent.Options[id].Transparency = a
-                    
-                    previewFrame.BackgroundColor3 = color
-                    transparencyFrame.Size = UDim2.new(1, 0, 1, -a * transparencyFrame.AbsoluteSize.Y)
-                    
-                    -- Update RGB and Hex inputs
-                    rgbInput.Text = string.format("%d, %d, %d", math.floor(color.r * 255 + 0.5), math.floor(color.g * 255 + 0.5), math.floor(color.b * 255 + 0.5))
-                    hexInput.Text = string.format("#%02X%02X%02X", math.floor(color.r * 255 + 0.5), math.floor(color.g * 255 + 0.5), math.floor(color.b * 255 + 0.5))
-                    
-                    -- Update saturation/value picker
-                    saturationValuePicker.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-                    saturationValueCursor.Position = UDim2.new(s, -3, 1 - v, -3)
-                    
-                    -- Update hue slider
-                    hueCursor.Position = UDim2.new(0.5, -5, h, -3)
-                    
-                    -- Update transparency slider
-                    transparencyCursor.Position = UDim2.new(0.5, -5, a, -3)
-                    
-                    colorpicker.Callback(color, a)
-                end
-                
-                -- Initialize with current color
-                local h, s, v = Color3.toHSV(Fluent.Options[id].Value)
-                updateColor(h, s, v, Fluent.Options[id].Transparency)
-                
-                -- Saturation/Value picker interaction
-                local function updateSaturationValue(input)
-                    local relativeX = (input.Position.X - saturationValuePicker.AbsolutePosition.X) / saturationValuePicker.AbsoluteSize.X
-                    local relativeY = (input.Position.Y - saturationValuePicker.AbsolutePosition.Y) / saturationValuePicker.AbsoluteSize.Y
-                    
-                    local s = math.clamp(relativeX, 0, 1)
-                    local v = 1 - math.clamp(relativeY, 0, 1)
-                    
-                    local h = hueCursor.Position.Y.Scale
-                    updateColor(h, s, v)
-                end
-                
-                saturationValuePicker.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        updateSaturationValue(input)
-                        
-                        local connection
-                        connection = input.Changed:Connect(function()
-                            if input.UserInputState == Enum.UserInputState.End then
-                                connection:Disconnect()
-                            else
-                                updateSaturationValue(input)
-                            end
-                        end)
-                    end
-                end)
-                
-                -- Hue slider interaction
-                local function updateHue(input)
-                    local relativeY = (input.Position.Y - hueSlider.AbsolutePosition.Y) / hueSlider.AbsoluteSize.Y
-                    local h = math.clamp(relativeY, 0, 1)
-                    
-                    local s = saturationValueCursor.Position.X.Scale
-                    local v = 1 - saturationValueCursor.Position.Y.Scale
-                    updateColor(h, s, v)
-                end
-                
-                hueSlider.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        updateHue(input)
-                        
-                        local connection
-                        connection = input.Changed:Connect(function()
-                            if input.UserInputState == Enum.UserInputState.End then
-                                connection:Disconnect()
-                            else
-                                updateHue(input)
-                            end
-                        end)
-                    end
-                end)
-                
-                -- Transparency slider interaction
-                local function updateTransparency(input)
-                    local relativeY = (input.Position.Y - transparencySlider.AbsolutePosition.Y) / transparencySlider.AbsoluteSize.Y
-                    local a = math.clamp(relativeY, 0, 1)
-                    
-                    local h = hueCursor.Position.Y.Scale
-                    local s = saturationValueCursor.Position.X.Scale
-                    local v = 1 - saturationValueCursor.Position.Y.Scale
-                    updateColor(h, s, v, a)
-                end
-                
-                transparencySlider.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        updateTransparency(input)
-                        
-                        local connection
-                        connection = input.Changed:Connect(function()
-                            if input.UserInputState == Enum.UserInputState.End then
-                                connection:Disconnect()
-                            else
-                                updateTransparency(input)
-                            end
-                        end)
-                    end
-                end)
-                
-                -- RGB input
-                rgbInput.FocusLost:Connect(function()
-                    local r, g, b = rgbInput.Text:match("(%d+),%s*(%d+),%s*(%d+)")
-                    if r and g and b then
-                        r = math.clamp(tonumber(r), 0, 255) / 255
-                        g = math.clamp(tonumber(g), 0, 255) / 255
-                        b = math.clamp(tonumber(b), 0, 255) / 255
-                        
-                        local h, s, v = Color3.toHSV(Color3.new(r, g, b))
-                        updateColor(h, s, v)
-                    else
-                        -- Reset to current color if input is invalid
-                        local color = Fluent.Options[id].Value
-                        rgbInput.Text = string.format("%d, %d, %d", math.floor(color.r * 255 + 0.5), math.floor(color.g * 255 + 0.5), math.floor(color.b * 255 + 0.5))
-                    end
-                end)
-                
-                -- Hex input
-                hexInput.FocusLost:Connect(function()
-                    local hex = hexInput.Text:match("#?(%x%x%x%x%x%x)")
-                    if hex and #hex == 6 then
-                        local r = tonumber(hex:sub(1, 2), 16) / 255
-                        local g = tonumber(hex:sub(3, 4), 16) / 255
-                        local b = tonumber(hex:sub(5, 6), 16) / 255
-                        
-                        local h, s, v = Color3.toHSV(Color3.new(r, g, b))
-                        updateColor(h, s, v)
-                    else
-                        -- Reset to current color if input is invalid
-                        local color = Fluent.Options[id].Value
-                        hexInput.Text = string.format("#%02X%02X%02X", math.floor(color.r * 255 + 0.5), math.floor(color.g * 255 + 0.5), math.floor(color.b * 255 + 0.5))
-                    end
-                end)
-                
-                pickerFrame.Visible = true
-                colorpickerFrame.Size = UDim2.new(1, 0, 0, pickerFrame.Position.Y.Offset + pickerFrame.Size.Y.Offset)
-            end
-            
-            previewFrame.MouseButton1Click:Connect(openColorPicker)
+            end)
             
             -- Auto-size the frame
             colorpickerFrame.Size = UDim2.new(1, 0, 0, previewFrame.Position.Y.Offset + previewFrame.Size.Y.Offset)
@@ -1385,8 +1072,11 @@ function Fluent:CreateWindow(options)
             -- Colorpicker methods
             function colorpicker:SetValue(color, transparency)
                 transparency = transparency or colorpicker.Transparency
-                local h, s, v = Color3.toHSV(color)
-                updateColor(h, s, v, transparency)
+                previewFrame.BackgroundColor3 = color
+                transparencyFrame.Size = UDim2.new(1, 0, 1, -transparency * 20)
+                Fluent.Options[id].Value = color
+                Fluent.Options[id].Transparency = transparency
+                colorpicker.Callback(color, transparency)
             end
             
             function colorpicker:SetValueRGB(color, transparency)
@@ -1500,61 +1190,6 @@ function Fluent:CreateWindow(options)
                 end
             end)
             
-            -- Keybind state tracking
-            local function updateState(newState)
-                if keybind.Mode == "Toggle" then
-                    if newState then
-                        state = not state
-                        keybind.Callback(state)
-                    end
-                else
-                    state = newState
-                    keybind.Callback(state)
-                end
-            end
-            
-            UserInputService.InputBegan:Connect(function(input, gameProcessed)
-                if gameProcessed then return end
-                
-                local currentKey = Fluent.Options[id].Value
-                local keyMatches = false
-                
-                if typeof(currentKey) == "EnumItem" and input.UserInputType == Enum.UserInputType.Keyboard then
-                    keyMatches = (input.KeyCode == currentKey)
-                elseif currentKey == "MB1" and input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    keyMatches = true
-                elseif currentKey == "MB2" and input.UserInputType == Enum.UserInputType.MouseButton2 then
-                    keyMatches = true
-                elseif currentKey == "MB3" and input.UserInputType == Enum.UserInputType.MouseButton3 then
-                    keyMatches = true
-                end
-                
-                if keyMatches then
-                    updateState(true)
-                end
-            end)
-            
-            UserInputService.InputEnded:Connect(function(input, gameProcessed)
-                if gameProcessed then return end
-                
-                local currentKey = Fluent.Options[id].Value
-                local keyMatches = false
-                
-                if typeof(currentKey) == "EnumItem" and input.UserInputType == Enum.UserInputType.Keyboard then
-                    keyMatches = (input.KeyCode == currentKey)
-                elseif currentKey == "MB1" and input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    keyMatches = true
-                elseif currentKey == "MB2" and input.UserInputType == Enum.UserInputType.MouseButton2 then
-                    keyMatches = true
-                elseif currentKey == "MB3" and input.UserInputType == Enum.UserInputType.MouseButton3 then
-                    keyMatches = true
-                end
-                
-                if keyMatches and keybind.Mode == "Hold" then
-                    updateState(false)
-                end
-            end)
-            
             -- Initialize
             setKeybind(keybind.Default, keybind.Mode)
             
@@ -1564,10 +1199,6 @@ function Fluent:CreateWindow(options)
             -- Keybind methods
             function keybind:SetValue(key, mode)
                 setKeybind(key, mode)
-            end
-            
-            function keybind:GetState()
-                return state
             end
             
             function keybind:OnClick(callback)
@@ -1690,7 +1321,7 @@ function Fluent:CreateWindow(options)
             Position = UDim2.new(0.5, -150, 0.5, -75),
             Size = UDim2.new(0, 300, 0, 150),
             AnchorPoint = Vector2.new(0.5, 0.5),
-            Parent = screenGui
+            Parent = LocalPlayer:WaitForChild("PlayerGui")
         })
         
         local titleLabel = Create("TextLabel", {
@@ -1775,239 +1406,5 @@ function Fluent:CreateWindow(options)
     
     return window
 end
-
--- SaveManager implementation
-local SaveManager = {
-    Library = nil,
-    IgnoredThemeSettings = false,
-    IgnoredIndexes = {},
-    Folder = "FluentConfigs",
-    
-    SetLibrary = function(self, lib)
-        self.Library = lib
-    end,
-    
-    IgnoreThemeSettings = function(self)
-        self.IgnoredThemeSettings = true
-    end,
-    
-    SetIgnoreIndexes = function(self, indexes)
-        self.IgnoredIndexes = indexes
-    end,
-    
-    SetFolder = function(self, folder)
-        self.Folder = folder
-    end,
-    
-    BuildConfigSection = function(self, tab)
-        if not self.Library then return end
-        
-        local section = tab:AddParagraph({
-            Title = "Configuration",
-            Content = "Save and load your configuration"
-        })
-        
-        local configInput = tab:AddInput("ConfigName", {
-            Title = "Config Name",
-            Default = "default",
-            Placeholder = "Enter config name"
-        })
-        
-        local saveButton = tab:AddButton({
-            Title = "Save Config",
-            Description = "Save current settings to config",
-            Callback = function()
-                self:SaveConfig(configInput.Value)
-            end
-        })
-        
-        local loadButton = tab:AddButton({
-            Title = "Load Config",
-            Description = "Load settings from config",
-            Callback = function()
-                self:LoadConfig(configInput.Value)
-            end
-        })
-        
-        local deleteButton = tab:AddButton({
-            Title = "Delete Config",
-            Description = "Delete a saved config",
-            Callback = function()
-                self:DeleteConfig(configInput.Value)
-            end
-        })
-        
-        local autoLoadToggle = tab:AddToggle("AutoLoadConfig", {
-            Title = "Auto Load Config",
-            Default = false,
-            Callback = function(value)
-                self:SetAutoLoad(value)
-            end
-        })
-    end,
-    
-    SaveConfig = function(self, name)
-        if not name or name == "" then return end
-        if not self.Library then return end
-        
-        local config = {}
-        
-        for id, option in pairs(Fluent.Options) do
-            if not table.find(self.IgnoredIndexes, id) then
-                if option.Type == "Colorpicker" and self.IgnoredThemeSettings then
-                    -- Skip colorpicker if theme settings are ignored
-                else
-                    config[id] = {
-                        Type = option.Type,
-                        Value = option.Value,
-                        Transparency = option.Transparency,
-                        Mode = option.Mode
-                    }
-                end
-            end
-        end
-        
-        -- In a real implementation, you would save this to a file or datastore
-        -- For this example, we'll just store it in memory
-        if not rawget(self, "Configs") then
-            rawset(self, "Configs", {})
-        end
-        
-        self.Configs[name] = config
-        
-        Fluent:Notify({
-            Title = "Config Saved",
-            Content = string.format("Config '%s' has been saved", name),
-            Duration = 3
-        })
-    end,
-    
-    LoadConfig = function(self, name)
-        if not name or name == "" then return end
-        if not self.Library then return end
-        if not self.Configs or not self.Configs[name] then
-            Fluent:Notify({
-                Title = "Error",
-                Content = string.format("Config '%s' not found", name),
-                Duration = 3
-            })
-            return
-        end
-        
-        local config = self.Configs[name]
-        
-        for id, option in pairs(config) do
-            if Fluent.Options[id] then
-                if option.Type == "Toggle" then
-                    Fluent.Options[id].Value = option.Value
-                elseif option.Type == "Slider" then
-                    Fluent.Options[id].Value = option.Value
-                elseif option.Type == "Dropdown" then
-                    Fluent.Options[id].Value = option.Value
-                elseif option.Type == "MultiDropdown" then
-                    Fluent.Options[id].Value = option.Value
-                elseif option.Type == "Colorpicker" then
-                    Fluent.Options[id].Value = option.Value
-                    Fluent.Options[id].Transparency = option.Transparency
-                elseif option.Type == "Keybind" then
-                    Fluent.Options[id].Value = option.Value
-                    Fluent.Options[id].Mode = option.Mode
-                elseif option.Type == "Input" then
-                    Fluent.Options[id].Value = option.Value
-                end
-            end
-        end
-        
-        Fluent:Notify({
-            Title = "Config Loaded",
-            Content = string.format("Config '%s' has been loaded", name),
-            Duration = 3
-        })
-    end,
-    
-    DeleteConfig = function(self, name)
-        if not name or name == "" then return end
-        if not self.Configs or not self.Configs[name] then
-            Fluent:Notify({
-                Title = "Error",
-                Content = string.format("Config '%s' not found", name),
-                Duration = 3
-            })
-            return
-        end
-        
-        self.Configs[name] = nil
-        
-        Fluent:Notify({
-            Title = "Config Deleted",
-            Content = string.format("Config '%s' has been deleted", name),
-            Duration = 3
-        })
-    end,
-    
-    SetAutoLoad = function(self, enabled)
-        -- In a real implementation, you would save this preference
-        if enabled then
-            Fluent:Notify({
-                Title = "Auto Load",
-                Content = "Config will auto load next time",
-                Duration = 3
-            })
-        end
-    end,
-    
-    LoadAutoloadConfig = function(self)
-        -- In a real implementation, you would load the autoload config here
-    end
-}
-
--- InterfaceManager implementation
-local InterfaceManager = {
-    Library = nil,
-    Folder = "FluentInterfaces",
-    
-    SetLibrary = function(self, lib)
-        self.Library = lib
-    end,
-    
-    SetFolder = function(self, folder)
-        self.Folder = folder
-    end,
-    
-    BuildInterfaceSection = function(self, tab)
-        if not self.Library then return end
-        
-        local section = tab:AddParagraph({
-            Title = "Interface",
-            Content = "Customize the interface appearance"
-        })
-        
-        local themeDropdown = tab:AddDropdown("InterfaceTheme", {
-            Title = "Theme",
-            Values = {"Dark", "Light"},
-            Default = 1,
-            Callback = function(value)
-                Fluent:SetTheme(value)
-            end
-        })
-        
-        local toggleButton = tab:AddButton({
-            Title = "Toggle Interface",
-            Description = "Show/hide the interface",
-            Callback = function()
-                -- This would toggle the main window visibility
-                Fluent:Notify({
-                    Title = "Info",
-                    Content = "Interface toggled",
-                    Duration = 2
-                })
-            end
-        })
-    end
-}
-
--- Assign managers
-Fluent.SaveManager = SaveManager
-Fluent.InterfaceManager = InterfaceManager
 
 return Fluent
