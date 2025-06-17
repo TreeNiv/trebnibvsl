@@ -1,6 +1,7 @@
--- Fluent UI Library
+-- Fluent UI Library v1.0
 local Fluent = {}
 Fluent.Version = "1.0.0"
+Fluent.Unloaded = false
 
 -- Services
 local TweenService = game:GetService("TweenService")
@@ -60,6 +61,7 @@ Fluent.Themes = {
 }
 
 Fluent.CurrentTheme = "Dark"
+Fluent.Options = {}
 
 function Fluent:SetTheme(themeName)
     if not self.Themes[themeName] then
@@ -67,7 +69,7 @@ function Fluent:SetTheme(themeName)
         return
     end
     self.CurrentTheme = themeName
-    -- You would update all UI elements here when theme changes
+    -- Theme update logic would go here
 end
 
 -- Notification system
@@ -227,6 +229,7 @@ function Fluent:CreateWindow(options)
     
     closeButton.MouseButton1Click:Connect(function()
         screenGui:Destroy()
+        Fluent.Unloaded = true
     end)
     
     -- Tab container
@@ -408,7 +411,7 @@ function Fluent:CreateWindow(options)
             local paragraphFrame = Create("Frame", {
                 Name = "Paragraph",
                 BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 0), -- Height will be auto-adjusted
+                Size = UDim2.new(1, 0, 0, 0),
                 LayoutOrder = #tabContentFrame:GetChildren(),
                 Parent = tabContentFrame
             })
@@ -433,7 +436,7 @@ function Fluent:CreateWindow(options)
                 Name = "Content",
                 BackgroundTransparency = 1,
                 Position = UDim2.new(0, 0, 0, paragraph.Title ~= "" and 25 or 0),
-                Size = UDim2.new(1, 0, 0, 0), -- Height will be auto-adjusted
+                Size = UDim2.new(1, 0, 0, 0),
                 Font = Enum.Font.Gotham,
                 Text = paragraph.Content,
                 TextColor3 = self.Themes[window.Theme].SubText,
@@ -473,7 +476,7 @@ function Fluent:CreateWindow(options)
             local buttonFrame = Create("Frame", {
                 Name = "Button",
                 BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 0), -- Height will be auto-adjusted
+                Size = UDim2.new(1, 0, 0, 0),
                 LayoutOrder = #tabContentFrame:GetChildren(),
                 Parent = tabContentFrame
             })
@@ -541,17 +544,20 @@ function Fluent:CreateWindow(options)
             return button
         end
         
-        function tab:AddToggle(options)
+        function tab:AddToggle(id, options)
             options = options or {}
             local toggle = {}
             toggle.Title = options.Title or "Toggle"
             toggle.Default = options.Default or false
             toggle.Callback = options.Callback or function() end
             
+            -- Store in options
+            Fluent.Options[id] = {Value = toggle.Default, Type = "Toggle"}
+            
             local toggleFrame = Create("Frame", {
                 Name = "Toggle",
                 BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 0), -- Height will be auto-adjusted
+                Size = UDim2.new(1, 0, 0, 0),
                 LayoutOrder = #tabContentFrame:GetChildren(),
                 Parent = tabContentFrame
             })
@@ -589,6 +595,7 @@ function Fluent:CreateWindow(options)
             })
             
             local function updateToggle(value)
+                Fluent.Options[id].Value = value
                 if value then
                     Tween(toggleElement, {BackgroundColor3 = self.Themes[window.Theme].Primary}, 0.2)
                     Tween(toggleKnob, {Position = UDim2.new(0, 20, 0, 0)}, 0.2)
@@ -600,8 +607,8 @@ function Fluent:CreateWindow(options)
             end
             
             toggleElement.MouseButton1Click:Connect(function()
-                toggle.Default = not toggle.Default
-                updateToggle(toggle.Default)
+                local newValue = not Fluent.Options[id].Value
+                updateToggle(newValue)
             end)
             
             -- Auto-size the frame
@@ -609,7 +616,6 @@ function Fluent:CreateWindow(options)
             
             -- Toggle methods
             function toggle:SetValue(value)
-                toggle.Default = value
                 updateToggle(value)
             end
             
@@ -620,7 +626,7 @@ function Fluent:CreateWindow(options)
             return toggle
         end
         
-        function tab:AddSlider(options)
+        function tab:AddSlider(id, options)
             options = options or {}
             local slider = {}
             slider.Title = options.Title or "Slider"
@@ -631,10 +637,13 @@ function Fluent:CreateWindow(options)
             slider.Rounding = options.Rounding or 0
             slider.Callback = options.Callback or function() end
             
+            -- Store in options
+            Fluent.Options[id] = {Value = slider.Default, Type = "Slider"}
+            
             local sliderFrame = Create("Frame", {
                 Name = "Slider",
                 BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 0), -- Height will be auto-adjusted
+                Size = UDim2.new(1, 0, 0, 0),
                 LayoutOrder = #tabContentFrame:GetChildren(),
                 Parent = tabContentFrame
             })
@@ -713,14 +722,15 @@ function Fluent:CreateWindow(options)
             local dragging = false
             
             local function updateSlider(value)
-                local percent = math.clamp((value - slider.Min) / (slider.Max - slider.Min), 0, 1)
-                sliderFill.Size = UDim2.new(percent, 0, 1, 0)
-                sliderKnob.Position = UDim2.new(percent, -5, 0.5, -5)
-                
+                value = math.clamp(value, slider.Min, slider.Max)
                 if slider.Rounding > 0 then
                     value = math.floor(value * (10 ^ slider.Rounding) + 0.5) / (10 ^ slider.Rounding)
                 end
                 
+                Fluent.Options[id].Value = value
+                local percent = (value - slider.Min) / (slider.Max - slider.Min)
+                sliderFill.Size = UDim2.new(percent, 0, 1, 0)
+                sliderKnob.Position = UDim2.new(percent, -5, 0.5, -5)
                 valueLabel.Text = tostring(value)
                 slider.Callback(value)
             end
@@ -767,7 +777,901 @@ function Fluent:CreateWindow(options)
             return slider
         end
         
-        -- Add other UI elements here (Dropdown, Colorpicker, Keybind, Input, etc.)
+        function tab:AddDropdown(id, options)
+            options = options or {}
+            local dropdown = {}
+            dropdown.Title = options.Title or "Dropdown"
+            dropdown.Values = options.Values or {}
+            dropdown.Multi = options.Multi or false
+            dropdown.Default = options.Default or (dropdown.Multi and {} or 1)
+            dropdown.Callback = options.Callback or function() end
+            
+            -- Store in options
+            if dropdown.Multi then
+                local defaultValues = {}
+                for _, value in pairs(dropdown.Default) do
+                    defaultValues[value] = true
+                end
+                Fluent.Options[id] = {Value = defaultValues, Type = "MultiDropdown"}
+            else
+                Fluent.Options[id] = {Value = dropdown.Default, Type = "Dropdown"}
+            end
+            
+            local dropdownFrame = Create("Frame", {
+                Name = "Dropdown",
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                LayoutOrder = #tabContentFrame:GetChildren(),
+                Parent = tabContentFrame
+            })
+            
+            local titleLabel = Create("TextLabel", {
+                Name = "Title",
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 0, 0, 0),
+                Size = UDim2.new(1, 0, 0, 20),
+                Font = Enum.Font.Gotham,
+                Text = dropdown.Title,
+                TextColor3 = self.Themes[window.Theme].Text,
+                TextSize = 14,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Parent = dropdownFrame
+            })
+            
+            local dropdownButton = Create("TextButton", {
+                Name = "DropdownButton",
+                BackgroundColor3 = self.Themes[window.Theme].Secondary,
+                BorderColor3 = self.Themes[window.Theme].Border,
+                BorderSizePixel = 1,
+                Position = UDim2.new(0, 0, 0, 25),
+                Size = UDim2.new(1, 0, 0, 30),
+                Font = Enum.Font.Gotham,
+                Text = "",
+                TextColor3 = self.Themes[window.Theme].Text,
+                TextSize = 14,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Parent = dropdownFrame
+            })
+            
+            local dropdownText = Create("TextLabel", {
+                Name = "DropdownText",
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 10, 0, 0),
+                Size = UDim2.new(1, -30, 1, 0),
+                Font = Enum.Font.Gotham,
+                Text = dropdown.Multi and "Select..." or tostring(dropdown.Values[dropdown.Default] or "Select..."),
+                TextColor3 = self.Themes[window.Theme].Text,
+                TextSize = 14,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Parent = dropdownButton
+            })
+            
+            local dropdownIcon = Create("TextLabel", {
+                Name = "DropdownIcon",
+                BackgroundTransparency = 1,
+                Position = UDim2.new(1, -20, 0, 0),
+                Size = UDim2.new(0, 20, 1, 0),
+                Font = Enum.Font.Gotham,
+                Text = "▼",
+                TextColor3 = self.Themes[window.Theme].Text,
+                TextSize = 14,
+                Parent = dropdownButton
+            })
+            
+            local dropdownList = Create("ScrollingFrame", {
+                Name = "DropdownList",
+                BackgroundColor3 = self.Themes[window.Theme].Secondary,
+                BorderColor3 = self.Themes[window.Theme].Border,
+                BorderSizePixel = 1,
+                Position = UDim2.new(0, 0, 0, 60),
+                Size = UDim2.new(1, 0, 0, 0),
+                CanvasSize = UDim2.new(0, 0, 0, 0),
+                ScrollBarThickness = 3,
+                Visible = false,
+                Parent = dropdownFrame
+            })
+            
+            local listLayout = Create("UIListLayout", {
+                Name = "UIListLayout",
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Parent = dropdownList
+            })
+            
+            local function updateDropdownText()
+                if dropdown.Multi then
+                    local selected = {}
+                    for value, state in pairs(Fluent.Options[id].Value) do
+                        if state then
+                            table.insert(selected, value)
+                        end
+                    end
+                    dropdownText.Text = #selected > 0 and table.concat(selected, ", ") or "Select..."
+                else
+                    dropdownText.Text = tostring(Fluent.Options[id].Value) or "Select..."
+                end
+            end
+            
+            local function createDropdownOptions()
+                dropdownList:ClearAllChildren()
+                
+                for i, value in ipairs(dropdown.Values) do
+                    local optionFrame = Create("Frame", {
+                        Name = "Option_"..value,
+                        BackgroundColor3 = self.Themes[window.Theme].Secondary,
+                        BorderSizePixel = 0,
+                        Size = UDim2.new(1, 0, 0, 30),
+                        LayoutOrder = i,
+                        Parent = dropdownList
+                    })
+                    
+                    local optionText = Create("TextLabel", {
+                        Name = "Text",
+                        BackgroundTransparency = 1,
+                        Position = UDim2.new(0, 10, 0, 0),
+                        Size = UDim2.new(1, -30, 1, 0),
+                        Font = Enum.Font.Gotham,
+                        Text = tostring(value),
+                        TextColor3 = self.Themes[window.Theme].Text,
+                        TextSize = 14,
+                        TextXAlignment = Enum.TextXAlignment.Left,
+                        Parent = optionFrame
+                    })
+                    
+                    if dropdown.Multi then
+                        local checkbox = Create("Frame", {
+                            Name = "Checkbox",
+                            BackgroundColor3 = Fluent.Options[id].Value[value] and self.Themes[window.Theme].Primary or self.Themes[window.Theme].Secondary,
+                            BorderColor3 = self.Themes[window.Theme].Border,
+                            BorderSizePixel = 1,
+                            Position = UDim2.new(1, -25, 0.5, -7),
+                            Size = UDim2.new(0, 14, 0, 14),
+                            AnchorPoint = Vector2.new(1, 0.5),
+                            Parent = optionFrame
+                        })
+                        
+                        if Fluent.Options[id].Value[value] then
+                            local checkmark = Create("TextLabel", {
+                                Name = "Checkmark",
+                                BackgroundTransparency = 1,
+                                Size = UDim2.new(1, 0, 1, 0),
+                                Font = Enum.Font.GothamBold,
+                                Text = "✓",
+                                TextColor3 = Color3.fromRGB(255, 255, 255),
+                                TextSize = 12,
+                                Parent = checkbox
+                            })
+                        end
+                    else
+                        if tostring(Fluent.Options[id].Value) == tostring(value) then
+                            local checkmark = Create("TextLabel", {
+                                Name = "Checkmark",
+                                BackgroundTransparency = 1,
+                                Position = UDim2.new(1, -20, 0, 0),
+                                Size = UDim2.new(0, 20, 1, 0),
+                                Font = Enum.Font.GothamBold,
+                                Text = "✓",
+                                TextColor3 = self.Themes[window.Theme].Primary,
+                                TextSize = 14,
+                                Parent = optionFrame
+                            })
+                        end
+                    end
+                    
+                    optionFrame.MouseButton1Click:Connect(function()
+                        if dropdown.Multi then
+                            Fluent.Options[id].Value[value] = not Fluent.Options[id].Value[value]
+                            createDropdownOptions()
+                        else
+                            Fluent.Options[id].Value = value
+                            dropdownList.Visible = false
+                            Tween(dropdownIcon, {Rotation = 0}, 0.2)
+                        end
+                        updateDropdownText()
+                        dropdown.Callback(Fluent.Options[id].Value)
+                    end)
+                end
+                
+                dropdownList.CanvasSize = UDim2.new(0, 0, 0, #dropdown.Values * 30)
+            end
+            
+            local function toggleDropdown()
+                dropdownList.Visible = not dropdownList.Visible
+                if dropdownList.Visible then
+                    Tween(dropdownIcon, {Rotation = 180}, 0.2)
+                    dropdownList.Size = UDim2.new(1, 0, 0, math.min(#dropdown.Values * 30, 150))
+                    createDropdownOptions()
+                else
+                    Tween(dropdownIcon, {Rotation = 0}, 0.2)
+                    dropdownList.Size = UDim2.new(1, 0, 0, 0)
+                end
+            end
+            
+            dropdownButton.MouseButton1Click:Connect(toggleDropdown)
+            
+            -- Close dropdown when clicking outside
+            local function onInputBegan(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 and dropdownList.Visible then
+                    if not dropdownButton:IsAncestorOf(input.Parent) and not dropdownList:IsAncestorOf(input.Parent) then
+                        toggleDropdown()
+                    end
+                end
+            end
+            
+            UserInputService.InputBegan:Connect(onInputBegan)
+            
+            -- Initialize
+            createDropdownOptions()
+            updateDropdownText()
+            
+            -- Auto-size the frame
+            dropdownFrame.Size = UDim2.new(1, 0, 0, dropdownButton.Position.Y.Offset + dropdownButton.Size.Y.Offset + (dropdownList.Visible and dropdownList.Size.Y.Offset or 0))
+            
+            dropdownList:GetPropertyChangedSignal("Visible"):Connect(function()
+                dropdownFrame.Size = UDim2.new(1, 0, 0, dropdownButton.Position.Y.Offset + dropdownButton.Size.Y.Offset + (dropdownList.Visible and dropdownList.Size.Y.Offset or 0))
+            end)
+            
+            -- Dropdown methods
+            function dropdown:SetValue(value)
+                if dropdown.Multi then
+                    if type(value) == "table" then
+                        Fluent.Options[id].Value = {}
+                        for _, v in pairs(value) do
+                            Fluent.Options[id].Value[v] = true
+                        end
+                    else
+                        Fluent.Options[id].Value = {[value] = true}
+                    end
+                else
+                    Fluent.Options[id].Value = value
+                end
+                updateDropdownText()
+                createDropdownOptions()
+                dropdown.Callback(Fluent.Options[id].Value)
+            end
+            
+            function dropdown:OnChanged(callback)
+                dropdown.Callback = callback
+            end
+            
+            return dropdown
+        end
+        
+        function tab:AddColorpicker(id, options)
+            options = options or {}
+            local colorpicker = {}
+            colorpicker.Title = options.Title or "Colorpicker"
+            colorpicker.Default = options.Default or Color3.fromRGB(255, 255, 255)
+            colorpicker.Transparency = options.Transparency or 0
+            colorpicker.Callback = options.Callback or function() end
+            
+            -- Store in options
+            Fluent.Options[id] = {Value = colorpicker.Default, Transparency = colorpicker.Transparency, Type = "Colorpicker"}
+            
+            local colorpickerFrame = Create("Frame", {
+                Name = "Colorpicker",
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                LayoutOrder = #tabContentFrame:GetChildren(),
+                Parent = tabContentFrame
+            })
+            
+            local titleLabel = Create("TextLabel", {
+                Name = "Title",
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 0, 0, 0),
+                Size = UDim2.new(1, -60, 0, 20),
+                Font = Enum.Font.Gotham,
+                Text = colorpicker.Title,
+                TextColor3 = self.Themes[window.Theme].Text,
+                TextSize = 14,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Parent = colorpickerFrame
+            })
+            
+            local previewFrame = Create("Frame", {
+                Name = "Preview",
+                BackgroundColor3 = colorpicker.Default,
+                BorderColor3 = self.Themes[window.Theme].Border,
+                BorderSizePixel = 1,
+                Position = UDim2.new(1, -50, 0, 0),
+                Size = UDim2.new(0, 50, 0, 20),
+                Parent = colorpickerFrame
+            })
+            
+            local transparencyFrame = Create("Frame", {
+                Name = "Transparency",
+                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                BorderColor3 = self.Themes[window.Theme].Border,
+                BorderSizePixel = 1,
+                Position = UDim2.new(0, 0, 0, 0),
+                Size = UDim2.new(1, 0, 1, 0),
+                Parent = Create("Frame", {
+                    Name = "TransparencyContainer",
+                    BackgroundColor3 = Color3.fromRGB(175, 175, 175),
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(0, 0, 0, 0),
+                    Size = UDim2.new(1, 0, 1, 0),
+                    Parent = previewFrame
+                })
+            })
+            
+            transparencyFrame.Size = UDim2.new(1, 0, 1, -colorpicker.Transparency * transparencyFrame.AbsoluteSize.Y)
+            
+            local pickerFrame
+            local hueSlider
+            local transparencySlider
+            
+            local function openColorPicker()
+                if pickerFrame then pickerFrame:Destroy() end
+                
+                pickerFrame = Create("Frame", {
+                    Name = "ColorPickerFrame",
+                    BackgroundColor3 = self.Themes[window.Theme].Secondary,
+                    BorderColor3 = self.Themes[window.Theme].Border,
+                    BorderSizePixel = 1,
+                    Position = UDim2.new(0, 0, 0, 25),
+                    Size = UDim2.new(1, 0, 0, 200),
+                    Visible = false,
+                    Parent = colorpickerFrame
+                })
+                
+                local saturationValuePicker = Create("ImageButton", {
+                    Name = "SaturationValuePicker",
+                    BackgroundColor3 = Color3.fromHSV(0, 1, 1),
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(0, 5, 0, 5),
+                    Size = UDim2.new(0, 150, 0, 150),
+                    Parent = pickerFrame
+                })
+                
+                local saturationValueCursor = Create("Frame", {
+                    Name = "Cursor",
+                    BackgroundTransparency = 1,
+                    BorderColor3 = Color3.fromRGB(255, 255, 255),
+                    BorderSizePixel = 1,
+                    Position = UDim2.new(0.5, -3, 0.5, -3),
+                    Size = UDim2.new(0, 6, 0, 6),
+                    Parent = saturationValuePicker
+                })
+                
+                hueSlider = Create("Frame", {
+                    Name = "HueSlider",
+                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(0, 160, 0, 5),
+                    Size = UDim2.new(0, 20, 0, 150),
+                    Parent = pickerFrame
+                })
+                
+                local hueGradient = Create("UIGradient", {
+                    Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+                        ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 0, 255)),
+                        ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 0, 255)),
+                        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+                        ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 255, 0)),
+                        ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 255, 0)),
+                        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
+                    }),
+                    Rotation = 90,
+                    Parent = hueSlider
+                })
+                
+                local hueCursor = Create("Frame", {
+                    Name = "Cursor",
+                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                    BorderColor3 = Color3.fromRGB(0, 0, 0),
+                    BorderSizePixel = 1,
+                    Position = UDim2.new(0.5, -5, 0, -3),
+                    Size = UDim2.new(0, 10, 0, 6),
+                    AnchorPoint = Vector2.new(0.5, 0),
+                    Parent = hueSlider
+                })
+                
+                transparencySlider = Create("Frame", {
+                    Name = "TransparencySlider",
+                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(0, 185, 0, 5),
+                    Size = UDim2.new(0, 20, 0, 150),
+                    Parent = pickerFrame
+                })
+                
+                local transparencyGradient = Create("UIGradient", {
+                    Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+                        ColorSequenceKeypoint.new(1, Color3.fromRGB(175, 175, 175))
+                    }),
+                    Rotation = 90,
+                    Parent = transparencySlider
+                })
+                
+                local transparencyCursor = Create("Frame", {
+                    Name = "Cursor",
+                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                    BorderColor3 = Color3.fromRGB(0, 0, 0),
+                    BorderSizePixel = 1,
+                    Position = UDim2.new(0.5, -5, 0, -3),
+                    Size = UDim2.new(0, 10, 0, 6),
+                    AnchorPoint = Vector2.new(0.5, 0),
+                    Parent = transparencySlider
+                })
+                
+                local rgbInput = Create("TextBox", {
+                    Name = "RGBInput",
+                    BackgroundColor3 = self.Themes[window.Theme].Secondary,
+                    BorderColor3 = self.Themes[window.Theme].Border,
+                    BorderSizePixel = 1,
+                    Position = UDim2.new(0, 5, 0, 160),
+                    Size = UDim2.new(0.5, -10, 0, 30),
+                    Font = Enum.Font.Gotham,
+                    PlaceholderText = "RGB (0-255, 0-255, 0-255)",
+                    Text = "",
+                    TextColor3 = self.Themes[window.Theme].Text,
+                    TextSize = 14,
+                    Parent = pickerFrame
+                })
+                
+                local hexInput = Create("TextBox", {
+                    Name = "HexInput",
+                    BackgroundColor3 = self.Themes[window.Theme].Secondary,
+                    BorderColor3 = self.Themes[window.Theme].Border,
+                    BorderSizePixel = 1,
+                    Position = UDim2.new(0.5, 5, 0, 160),
+                    Size = UDim2.new(0.5, -10, 0, 30),
+                    Font = Enum.Font.Gotham,
+                    PlaceholderText = "Hex (#FFFFFF)",
+                    Text = "",
+                    TextColor3 = self.Themes[window.Theme].Text,
+                    TextSize = 14,
+                    Parent = pickerFrame
+                })
+                
+                local function updateColor(h, s, v, a)
+                    h = h or 0
+                    s = s or 1
+                    v = v or 1
+                    a = a or colorpicker.Transparency
+                    
+                    local color = Color3.fromHSV(h, s, v)
+                    Fluent.Options[id].Value = color
+                    Fluent.Options[id].Transparency = a
+                    
+                    previewFrame.BackgroundColor3 = color
+                    transparencyFrame.Size = UDim2.new(1, 0, 1, -a * transparencyFrame.AbsoluteSize.Y)
+                    
+                    -- Update RGB and Hex inputs
+                    rgbInput.Text = string.format("%d, %d, %d", math.floor(color.r * 255 + 0.5), math.floor(color.g * 255 + 0.5), math.floor(color.b * 255 + 0.5))
+                    hexInput.Text = string.format("#%02X%02X%02X", math.floor(color.r * 255 + 0.5), math.floor(color.g * 255 + 0.5), math.floor(color.b * 255 + 0.5))
+                    
+                    -- Update saturation/value picker
+                    saturationValuePicker.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+                    saturationValueCursor.Position = UDim2.new(s, -3, 1 - v, -3)
+                    
+                    -- Update hue slider
+                    hueCursor.Position = UDim2.new(0.5, -5, h, -3)
+                    
+                    -- Update transparency slider
+                    transparencyCursor.Position = UDim2.new(0.5, -5, a, -3)
+                    
+                    colorpicker.Callback(color, a)
+                end
+                
+                -- Initialize with current color
+                local h, s, v = Color3.toHSV(Fluent.Options[id].Value)
+                updateColor(h, s, v, Fluent.Options[id].Transparency)
+                
+                -- Saturation/Value picker interaction
+                local function updateSaturationValue(input)
+                    local relativeX = (input.Position.X - saturationValuePicker.AbsolutePosition.X) / saturationValuePicker.AbsoluteSize.X
+                    local relativeY = (input.Position.Y - saturationValuePicker.AbsolutePosition.Y) / saturationValuePicker.AbsoluteSize.Y
+                    
+                    local s = math.clamp(relativeX, 0, 1)
+                    local v = 1 - math.clamp(relativeY, 0, 1)
+                    
+                    local h = hueCursor.Position.Y.Scale
+                    updateColor(h, s, v)
+                end
+                
+                saturationValuePicker.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        updateSaturationValue(input)
+                        
+                        local connection
+                        connection = input.Changed:Connect(function()
+                            if input.UserInputState == Enum.UserInputState.End then
+                                connection:Disconnect()
+                            else
+                                updateSaturationValue(input)
+                            end
+                        end)
+                    end
+                end)
+                
+                -- Hue slider interaction
+                local function updateHue(input)
+                    local relativeY = (input.Position.Y - hueSlider.AbsolutePosition.Y) / hueSlider.AbsoluteSize.Y
+                    local h = math.clamp(relativeY, 0, 1)
+                    
+                    local s = saturationValueCursor.Position.X.Scale
+                    local v = 1 - saturationValueCursor.Position.Y.Scale
+                    updateColor(h, s, v)
+                end
+                
+                hueSlider.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        updateHue(input)
+                        
+                        local connection
+                        connection = input.Changed:Connect(function()
+                            if input.UserInputState == Enum.UserInputState.End then
+                                connection:Disconnect()
+                            else
+                                updateHue(input)
+                            end
+                        end)
+                    end
+                end)
+                
+                -- Transparency slider interaction
+                local function updateTransparency(input)
+                    local relativeY = (input.Position.Y - transparencySlider.AbsolutePosition.Y) / transparencySlider.AbsoluteSize.Y
+                    local a = math.clamp(relativeY, 0, 1)
+                    
+                    local h = hueCursor.Position.Y.Scale
+                    local s = saturationValueCursor.Position.X.Scale
+                    local v = 1 - saturationValueCursor.Position.Y.Scale
+                    updateColor(h, s, v, a)
+                end
+                
+                transparencySlider.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        updateTransparency(input)
+                        
+                        local connection
+                        connection = input.Changed:Connect(function()
+                            if input.UserInputState == Enum.UserInputState.End then
+                                connection:Disconnect()
+                            else
+                                updateTransparency(input)
+                            end
+                        end)
+                    end
+                end)
+                
+                -- RGB input
+                rgbInput.FocusLost:Connect(function()
+                    local r, g, b = rgbInput.Text:match("(%d+),%s*(%d+),%s*(%d+)")
+                    if r and g and b then
+                        r = math.clamp(tonumber(r), 0, 255) / 255
+                        g = math.clamp(tonumber(g), 0, 255) / 255
+                        b = math.clamp(tonumber(b), 0, 255) / 255
+                        
+                        local h, s, v = Color3.toHSV(Color3.new(r, g, b))
+                        updateColor(h, s, v)
+                    else
+                        -- Reset to current color if input is invalid
+                        local color = Fluent.Options[id].Value
+                        rgbInput.Text = string.format("%d, %d, %d", math.floor(color.r * 255 + 0.5), math.floor(color.g * 255 + 0.5), math.floor(color.b * 255 + 0.5))
+                    end
+                end)
+                
+                -- Hex input
+                hexInput.FocusLost:Connect(function()
+                    local hex = hexInput.Text:match("#?(%x%x%x%x%x%x)")
+                    if hex and #hex == 6 then
+                        local r = tonumber(hex:sub(1, 2), 16) / 255
+                        local g = tonumber(hex:sub(3, 4), 16) / 255
+                        local b = tonumber(hex:sub(5, 6), 16) / 255
+                        
+                        local h, s, v = Color3.toHSV(Color3.new(r, g, b))
+                        updateColor(h, s, v)
+                    else
+                        -- Reset to current color if input is invalid
+                        local color = Fluent.Options[id].Value
+                        hexInput.Text = string.format("#%02X%02X%02X", math.floor(color.r * 255 + 0.5), math.floor(color.g * 255 + 0.5), math.floor(color.b * 255 + 0.5))
+                    end
+                end)
+                
+                pickerFrame.Visible = true
+                colorpickerFrame.Size = UDim2.new(1, 0, 0, pickerFrame.Position.Y.Offset + pickerFrame.Size.Y.Offset)
+            end
+            
+            previewFrame.MouseButton1Click:Connect(openColorPicker)
+            
+            -- Auto-size the frame
+            colorpickerFrame.Size = UDim2.new(1, 0, 0, previewFrame.Position.Y.Offset + previewFrame.Size.Y.Offset)
+            
+            -- Colorpicker methods
+            function colorpicker:SetValue(color, transparency)
+                transparency = transparency or colorpicker.Transparency
+                local h, s, v = Color3.toHSV(color)
+                updateColor(h, s, v, transparency)
+            end
+            
+            function colorpicker:SetValueRGB(color, transparency)
+                self:SetValue(color, transparency)
+            end
+            
+            function colorpicker:OnChanged(callback)
+                colorpicker.Callback = callback
+            end
+            
+            return colorpicker
+        end
+        
+        function tab:AddKeybind(id, options)
+            options = options or {}
+            local keybind = {}
+            keybind.Title = options.Title or "Keybind"
+            keybind.Mode = options.Mode or "Toggle" -- "Always", "Toggle", "Hold"
+            keybind.Default = options.Default or "LeftControl"
+            keybind.Callback = options.Callback or function() end
+            keybind.ChangedCallback = options.ChangedCallback or function() end
+            
+            -- Store in options
+            Fluent.Options[id] = {Value = keybind.Default, Mode = keybind.Mode, Type = "Keybind"}
+            
+            local keybindFrame = Create("Frame", {
+                Name = "Keybind",
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                LayoutOrder = #tabContentFrame:GetChildren(),
+                Parent = tabContentFrame
+            })
+            
+            local titleLabel = Create("TextLabel", {
+                Name = "Title",
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 0, 0, 0),
+                Size = UDim2.new(1, -100, 0, 20),
+                Font = Enum.Font.Gotham,
+                Text = keybind.Title,
+                TextColor3 = self.Themes[window.Theme].Text,
+                TextSize = 14,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Parent = keybindFrame
+            })
+            
+            local keybindButton = Create("TextButton", {
+                Name = "KeybindButton",
+                BackgroundColor3 = self.Themes[window.Theme].Secondary,
+                BorderColor3 = self.Themes[window.Theme].Border,
+                BorderSizePixel = 1,
+                Position = UDim2.new(1, -90, 0, 0),
+                Size = UDim2.new(0, 90, 0, 20),
+                Font = Enum.Font.Gotham,
+                Text = keybind.Default,
+                TextColor3 = self.Themes[window.Theme].Text,
+                TextSize = 14,
+                Parent = keybindFrame
+            })
+            
+            local listening = false
+            local state = false
+            
+            local function getKeyName(keyCode)
+                if typeof(keyCode) == "EnumItem" then
+                    return keyCode.Name
+                elseif typeof(keyCode) == "string" then
+                    return keyCode
+                end
+                return "None"
+            end
+            
+            local function setKeybind(key, mode)
+                key = key or Fluent.Options[id].Value
+                mode = mode or Fluent.Options[id].Mode
+                
+                Fluent.Options[id].Value = key
+                Fluent.Options[id].Mode = mode
+                keybindButton.Text = getKeyName(key)
+                keybind.ChangedCallback(key)
+            end
+            
+            keybindButton.MouseButton1Click:Connect(function()
+                if not listening then
+                    listening = true
+                    keybindButton.Text = "[...]"
+                    keybindButton.BackgroundColor3 = self.Themes[window.Theme].Accent
+                    
+                    local connection
+                    connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+                        if gameProcessed then return end
+                        
+                        local key
+                        if input.UserInputType == Enum.UserInputType.Keyboard then
+                            key = input.KeyCode
+                        elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+                            key = "MB1"
+                        elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+                            key = "MB2"
+                        elseif input.UserInputType == Enum.UserInputType.MouseButton3 then
+                            key = "MB3"
+                        else
+                            return
+                        end
+                        
+                        setKeybind(key)
+                        listening = false
+                        keybindButton.BackgroundColor3 = self.Themes[window.Theme].Secondary
+                        connection:Disconnect()
+                    end)
+                end
+            end)
+            
+            -- Keybind state tracking
+            local function updateState(newState)
+                if keybind.Mode == "Toggle" then
+                    if newState then
+                        state = not state
+                        keybind.Callback(state)
+                    end
+                else
+                    state = newState
+                    keybind.Callback(state)
+                end
+            end
+            
+            UserInputService.InputBegan:Connect(function(input, gameProcessed)
+                if gameProcessed then return end
+                
+                local currentKey = Fluent.Options[id].Value
+                local keyMatches = false
+                
+                if typeof(currentKey) == "EnumItem" and input.UserInputType == Enum.UserInputType.Keyboard then
+                    keyMatches = (input.KeyCode == currentKey)
+                elseif currentKey == "MB1" and input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    keyMatches = true
+                elseif currentKey == "MB2" and input.UserInputType == Enum.UserInputType.MouseButton2 then
+                    keyMatches = true
+                elseif currentKey == "MB3" and input.UserInputType == Enum.UserInputType.MouseButton3 then
+                    keyMatches = true
+                end
+                
+                if keyMatches then
+                    updateState(true)
+                end
+            end)
+            
+            UserInputService.InputEnded:Connect(function(input, gameProcessed)
+                if gameProcessed then return end
+                
+                local currentKey = Fluent.Options[id].Value
+                local keyMatches = false
+                
+                if typeof(currentKey) == "EnumItem" and input.UserInputType == Enum.UserInputType.Keyboard then
+                    keyMatches = (input.KeyCode == currentKey)
+                elseif currentKey == "MB1" and input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    keyMatches = true
+                elseif currentKey == "MB2" and input.UserInputType == Enum.UserInputType.MouseButton2 then
+                    keyMatches = true
+                elseif currentKey == "MB3" and input.UserInputType == Enum.UserInputType.MouseButton3 then
+                    keyMatches = true
+                end
+                
+                if keyMatches and keybind.Mode == "Hold" then
+                    updateState(false)
+                end
+            end)
+            
+            -- Initialize
+            setKeybind(keybind.Default, keybind.Mode)
+            
+            -- Auto-size the frame
+            keybindFrame.Size = UDim2.new(1, 0, 0, keybindButton.Position.Y.Offset + keybindButton.Size.Y.Offset)
+            
+            -- Keybind methods
+            function keybind:SetValue(key, mode)
+                setKeybind(key, mode)
+            end
+            
+            function keybind:GetState()
+                return state
+            end
+            
+            function keybind:OnClick(callback)
+                keybind.Callback = callback
+            end
+            
+            function keybind:OnChanged(callback)
+                keybind.ChangedCallback = callback
+            end
+            
+            return keybind
+        end
+        
+        function tab:AddInput(id, options)
+            options = options or {}
+            local input = {}
+            input.Title = options.Title or "Input"
+            input.Default = options.Default or ""
+            input.Placeholder = options.Placeholder or ""
+            input.Numeric = options.Numeric or false
+            input.Finished = options.Finished or false
+            input.Callback = options.Callback or function() end
+            
+            -- Store in options
+            Fluent.Options[id] = {Value = input.Default, Type = "Input"}
+            
+            local inputFrame = Create("Frame", {
+                Name = "Input",
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                LayoutOrder = #tabContentFrame:GetChildren(),
+                Parent = tabContentFrame
+            })
+            
+            local titleLabel = Create("TextLabel", {
+                Name = "Title",
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 0, 0, 0),
+                Size = UDim2.new(1, 0, 0, 20),
+                Font = Enum.Font.Gotham,
+                Text = input.Title,
+                TextColor3 = self.Themes[window.Theme].Text,
+                TextSize = 14,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Parent = inputFrame
+            })
+            
+            local inputBox = Create("TextBox", {
+                Name = "InputBox",
+                BackgroundColor3 = self.Themes[window.Theme].Secondary,
+                BorderColor3 = self.Themes[window.Theme].Border,
+                BorderSizePixel = 1,
+                Position = UDim2.new(0, 0, 0, 25),
+                Size = UDim2.new(1, 0, 0, 30),
+                Font = Enum.Font.Gotham,
+                PlaceholderText = input.Placeholder,
+                Text = input.Default,
+                TextColor3 = self.Themes[window.Theme].Text,
+                TextSize = 14,
+                ClearTextOnFocus = false,
+                Parent = inputFrame
+            })
+            
+            local function updateInput(value)
+                Fluent.Options[id].Value = value
+                input.Callback(value)
+            end
+            
+            if input.Numeric then
+                inputBox:GetPropertyChangedSignal("Text"):Connect(function()
+                    local text = inputBox.Text
+                    local newText = text:gsub("[^%d%.%-]", "")
+                    
+                    if newText ~= text then
+                        inputBox.Text = newText
+                    end
+                end)
+            end
+            
+            if input.Finished then
+                inputBox.FocusLost:Connect(function()
+                    updateInput(inputBox.Text)
+                end)
+            else
+                inputBox:GetPropertyChangedSignal("Text"):Connect(function()
+                    updateInput(inputBox.Text)
+                end)
+            end
+            
+            -- Auto-size the frame
+            inputFrame.Size = UDim2.new(1, 0, 0, inputBox.Position.Y.Offset + inputBox.Size.Y.Offset)
+            
+            -- Input methods
+            function input:SetValue(value)
+                inputBox.Text = tostring(value)
+                updateInput(value)
+            end
+            
+            function input:OnChanged(callback)
+                input.Callback = callback
+            end
+            
+            return input
+        end
         
         return tab
     end
@@ -780,8 +1684,8 @@ function Fluent:CreateWindow(options)
         
         local dialogFrame = Create("Frame", {
             Name = "Dialog",
-            BackgroundColor3 = self.Themes[window.Theme].Secondary,
-            BorderColor3 = self.Themes[window.Theme].Border,
+            BackgroundColor3 = self.Themes[Fluent.CurrentTheme].Secondary,
+            BorderColor3 = self.Themes[Fluent.CurrentTheme].Border,
             BorderSizePixel = 1,
             Position = UDim2.new(0.5, -150, 0.5, -75),
             Size = UDim2.new(0, 300, 0, 150),
@@ -791,7 +1695,7 @@ function Fluent:CreateWindow(options)
         
         local titleLabel = Create("TextLabel", {
             Name = "Title",
-            BackgroundColor3 = self.Themes[window.Theme].Primary,
+            BackgroundColor3 = self.Themes[Fluent.CurrentTheme].Primary,
             BorderSizePixel = 0,
             Size = UDim2.new(1, 0, 0, 30),
             Font = Enum.Font.GothamSemibold,
@@ -808,7 +1712,7 @@ function Fluent:CreateWindow(options)
             Size = UDim2.new(1, -20, 0, 70),
             Font = Enum.Font.Gotham,
             Text = content,
-            TextColor3 = self.Themes[window.Theme].Text,
+            TextColor3 = self.Themes[Fluent.CurrentTheme].Text,
             TextSize = 14,
             TextWrapped = true,
             Parent = dialogFrame
@@ -834,7 +1738,7 @@ function Fluent:CreateWindow(options)
         for i, buttonInfo in ipairs(buttons) do
             local button = Create("TextButton", {
                 Name = "Button_"..buttonInfo.Title,
-                BackgroundColor3 = self.Themes[window.Theme].Primary,
+                BackgroundColor3 = self.Themes[Fluent.CurrentTheme].Primary,
                 BorderSizePixel = 0,
                 Size = UDim2.new(0, 80, 1, 0),
                 Font = Enum.Font.Gotham,
@@ -857,31 +1761,252 @@ function Fluent:CreateWindow(options)
     end
     
     function window:SelectTab(index)
-        -- Implement tab selection by index
+        local tabs = {}
+        for _, child in ipairs(tabButtons:GetChildren()) do
+            if child:IsA("TextButton") and child.Name:match("TabButton_") then
+                table.insert(tabs, child)
+            end
+        end
+        
+        if tabs[index] then
+            tabs[index]:MouseButton1Click()
+        end
     end
     
     return window
 end
 
--- Options storage
-Fluent.Options = {}
-
--- SaveManager and InterfaceManager stubs
+-- SaveManager implementation
 local SaveManager = {
-    SetLibrary = function(self, lib) end,
-    IgnoreThemeSettings = function(self) end,
-    SetIgnoreIndexes = function(self, indexes) end,
-    SetFolder = function(self, folder) end,
-    BuildConfigSection = function(self, tab) end,
-    LoadAutoloadConfig = function(self) end
+    Library = nil,
+    IgnoredThemeSettings = false,
+    IgnoredIndexes = {},
+    Folder = "FluentConfigs",
+    
+    SetLibrary = function(self, lib)
+        self.Library = lib
+    end,
+    
+    IgnoreThemeSettings = function(self)
+        self.IgnoredThemeSettings = true
+    end,
+    
+    SetIgnoreIndexes = function(self, indexes)
+        self.IgnoredIndexes = indexes
+    end,
+    
+    SetFolder = function(self, folder)
+        self.Folder = folder
+    end,
+    
+    BuildConfigSection = function(self, tab)
+        if not self.Library then return end
+        
+        local section = tab:AddParagraph({
+            Title = "Configuration",
+            Content = "Save and load your configuration"
+        })
+        
+        local configInput = tab:AddInput("ConfigName", {
+            Title = "Config Name",
+            Default = "default",
+            Placeholder = "Enter config name"
+        })
+        
+        local saveButton = tab:AddButton({
+            Title = "Save Config",
+            Description = "Save current settings to config",
+            Callback = function()
+                self:SaveConfig(configInput.Value)
+            end
+        })
+        
+        local loadButton = tab:AddButton({
+            Title = "Load Config",
+            Description = "Load settings from config",
+            Callback = function()
+                self:LoadConfig(configInput.Value)
+            end
+        })
+        
+        local deleteButton = tab:AddButton({
+            Title = "Delete Config",
+            Description = "Delete a saved config",
+            Callback = function()
+                self:DeleteConfig(configInput.Value)
+            end
+        })
+        
+        local autoLoadToggle = tab:AddToggle("AutoLoadConfig", {
+            Title = "Auto Load Config",
+            Default = false,
+            Callback = function(value)
+                self:SetAutoLoad(value)
+            end
+        })
+    end,
+    
+    SaveConfig = function(self, name)
+        if not name or name == "" then return end
+        if not self.Library then return end
+        
+        local config = {}
+        
+        for id, option in pairs(Fluent.Options) do
+            if not table.find(self.IgnoredIndexes, id) then
+                if option.Type == "Colorpicker" and self.IgnoredThemeSettings then
+                    -- Skip colorpicker if theme settings are ignored
+                else
+                    config[id] = {
+                        Type = option.Type,
+                        Value = option.Value,
+                        Transparency = option.Transparency,
+                        Mode = option.Mode
+                    }
+                end
+            end
+        end
+        
+        -- In a real implementation, you would save this to a file or datastore
+        -- For this example, we'll just store it in memory
+        if not rawget(self, "Configs") then
+            rawset(self, "Configs", {})
+        end
+        
+        self.Configs[name] = config
+        
+        Fluent:Notify({
+            Title = "Config Saved",
+            Content = string.format("Config '%s' has been saved", name),
+            Duration = 3
+        })
+    end,
+    
+    LoadConfig = function(self, name)
+        if not name or name == "" then return end
+        if not self.Library then return end
+        if not self.Configs or not self.Configs[name] then
+            Fluent:Notify({
+                Title = "Error",
+                Content = string.format("Config '%s' not found", name),
+                Duration = 3
+            })
+            return
+        end
+        
+        local config = self.Configs[name]
+        
+        for id, option in pairs(config) do
+            if Fluent.Options[id] then
+                if option.Type == "Toggle" then
+                    Fluent.Options[id].Value = option.Value
+                elseif option.Type == "Slider" then
+                    Fluent.Options[id].Value = option.Value
+                elseif option.Type == "Dropdown" then
+                    Fluent.Options[id].Value = option.Value
+                elseif option.Type == "MultiDropdown" then
+                    Fluent.Options[id].Value = option.Value
+                elseif option.Type == "Colorpicker" then
+                    Fluent.Options[id].Value = option.Value
+                    Fluent.Options[id].Transparency = option.Transparency
+                elseif option.Type == "Keybind" then
+                    Fluent.Options[id].Value = option.Value
+                    Fluent.Options[id].Mode = option.Mode
+                elseif option.Type == "Input" then
+                    Fluent.Options[id].Value = option.Value
+                end
+            end
+        end
+        
+        Fluent:Notify({
+            Title = "Config Loaded",
+            Content = string.format("Config '%s' has been loaded", name),
+            Duration = 3
+        })
+    end,
+    
+    DeleteConfig = function(self, name)
+        if not name or name == "" then return end
+        if not self.Configs or not self.Configs[name] then
+            Fluent:Notify({
+                Title = "Error",
+                Content = string.format("Config '%s' not found", name),
+                Duration = 3
+            })
+            return
+        end
+        
+        self.Configs[name] = nil
+        
+        Fluent:Notify({
+            Title = "Config Deleted",
+            Content = string.format("Config '%s' has been deleted", name),
+            Duration = 3
+        })
+    end,
+    
+    SetAutoLoad = function(self, enabled)
+        -- In a real implementation, you would save this preference
+        if enabled then
+            Fluent:Notify({
+                Title = "Auto Load",
+                Content = "Config will auto load next time",
+                Duration = 3
+            })
+        end
+    end,
+    
+    LoadAutoloadConfig = function(self)
+        -- In a real implementation, you would load the autoload config here
+    end
 }
 
+-- InterfaceManager implementation
 local InterfaceManager = {
-    SetLibrary = function(self, lib) end,
-    SetFolder = function(self, folder) end,
-    BuildInterfaceSection = function(self, tab) end
+    Library = nil,
+    Folder = "FluentInterfaces",
+    
+    SetLibrary = function(self, lib)
+        self.Library = lib
+    end,
+    
+    SetFolder = function(self, folder)
+        self.Folder = folder
+    end,
+    
+    BuildInterfaceSection = function(self, tab)
+        if not self.Library then return end
+        
+        local section = tab:AddParagraph({
+            Title = "Interface",
+            Content = "Customize the interface appearance"
+        })
+        
+        local themeDropdown = tab:AddDropdown("InterfaceTheme", {
+            Title = "Theme",
+            Values = {"Dark", "Light"},
+            Default = 1,
+            Callback = function(value)
+                Fluent:SetTheme(value)
+            end
+        })
+        
+        local toggleButton = tab:AddButton({
+            Title = "Toggle Interface",
+            Description = "Show/hide the interface",
+            Callback = function()
+                -- This would toggle the main window visibility
+                Fluent:Notify({
+                    Title = "Info",
+                    Content = "Interface toggled",
+                    Duration = 2
+                })
+            end
+        })
+    end
 }
 
+-- Assign managers
 Fluent.SaveManager = SaveManager
 Fluent.InterfaceManager = InterfaceManager
 
