@@ -1,6 +1,6 @@
--- Fluent UI Library
+-- Fluent UI Library v2.0
 local Fluent = {}
-Fluent.Version = "1.2.0"
+Fluent.Version = "2.0.0"
 Fluent.Unloaded = false
 
 -- Services
@@ -9,6 +9,7 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local TextService = game:GetService("TextService")
+local HttpService = game:GetService("HttpService")
 
 -- Utility functions
 local function Create(class, props)
@@ -38,10 +39,6 @@ local function Tween(instance, properties, duration, style, direction)
     return tween
 end
 
-local function GetTextSize(text, font, size, bounds)
-    return TextService:GetTextSize(text, size, font, bounds or Vector2.new(10000, 10000))
-end
-
 -- Themes
 Fluent.Themes = {
     Dark = {
@@ -54,9 +51,13 @@ Fluent.Themes = {
         Accent = Color3.fromRGB(0, 150, 255),
         Error = Color3.fromRGB(255, 50, 50),
         Success = Color3.fromRGB(50, 255, 50),
-        Border = Color3.fromRGB(60, 60, 60),
+        Border = Color3.fromRGB(70, 70, 70),
         Hover = Color3.fromRGB(50, 50, 50),
-        Pressed = Color3.fromRGB(30, 30, 30)
+        Pressed = Color3.fromRGB(30, 30, 30),
+        TabActive = Color3.fromRGB(0, 90, 160),
+        TabHover = Color3.fromRGB(45, 45, 45),
+        ScrollBar = Color3.fromRGB(100, 100, 100),
+        Shadow = Color3.fromRGB(0, 0, 0)
     },
     Light = {
         Background = Color3.fromRGB(240, 240, 240),
@@ -70,7 +71,11 @@ Fluent.Themes = {
         Success = Color3.fromRGB(50, 255, 50),
         Border = Color3.fromRGB(200, 200, 200),
         Hover = Color3.fromRGB(230, 230, 230),
-        Pressed = Color3.fromRGB(210, 210, 210)
+        Pressed = Color3.fromRGB(210, 210, 210),
+        TabActive = Color3.fromRGB(0, 90, 160),
+        TabHover = Color3.fromRGB(225, 225, 225),
+        ScrollBar = Color3.fromRGB(180, 180, 180),
+        Shadow = Color3.fromRGB(100, 100, 100)
     }
 }
 
@@ -91,7 +96,7 @@ function Fluent:Notify(options)
         BorderColor3 = Fluent.Themes[Fluent.CurrentTheme].Border,
         BorderSizePixel = 1,
         Position = UDim2.new(1, 10, 1, -10),
-        Size = UDim2.new(0, 300, 0, 0),
+        Size = UDim2.new(0, 320, 0, 0),
         AnchorPoint = Vector2.new(1, 1),
         ClipsDescendants = true,
         Parent = game:GetService("CoreGui"),
@@ -99,24 +104,38 @@ function Fluent:Notify(options)
     })
     
     local corner = Create("UICorner", {
-        CornerRadius = UDim.new(0, 6),
+        CornerRadius = UDim.new(0, 8),
         Parent = notificationFrame
     })
     
     local stroke = Create("UIStroke", {
-        Color = Fluent.Themes[Fluent.CurrentTheme].Border,
-        Thickness = 1,
+        Color = Fluent.Themes[Fluent.CurrentTheme].Primary,
+        Thickness = 2,
         Parent = notificationFrame
+    })
+    
+    local glow = Create("ImageLabel", {
+        Name = "Glow",
+        Image = "rbxassetid://5028857084",
+        ImageColor3 = Fluent.Themes[Fluent.CurrentTheme].Primary,
+        ScaleType = Enum.ScaleType.Slice,
+        SliceCenter = Rect.new(24, 24, 276, 276),
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 20, 1, 20),
+        Position = UDim2.new(0.5, -10, 0.5, -10),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Parent = notificationFrame,
+        ZIndex = 99
     })
     
     local titleLabel = Create("TextLabel", {
         Name = "Title",
         Text = title,
-        Font = Enum.Font.GothamSemibold,
+        Font = Enum.Font.GothamBold,
         TextSize = 16,
         TextColor3 = Fluent.Themes[Fluent.CurrentTheme].Text,
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 15, 0, 15),
+        Position = UDim2.new(0, 15, 0, 12),
         Size = UDim2.new(1, -30, 0, 20),
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = notificationFrame,
@@ -130,7 +149,7 @@ function Fluent:Notify(options)
         TextSize = 14,
         TextColor3 = Fluent.Themes[Fluent.CurrentTheme].Text,
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 15, 0, 40),
+        Position = UDim2.new(0, 15, 0, 37),
         Size = UDim2.new(1, -30, 0, 20),
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = notificationFrame,
@@ -146,7 +165,7 @@ function Fluent:Notify(options)
             TextSize = 12,
             TextColor3 = Fluent.Themes[Fluent.CurrentTheme].SubText,
             BackgroundTransparency = 1,
-            Position = UDim2.new(0, 15, 0, 65),
+            Position = UDim2.new(0, 15, 0, 62),
             Size = UDim2.new(1, -30, 0, 20),
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = notificationFrame,
@@ -154,14 +173,16 @@ function Fluent:Notify(options)
         })
     end
     
-    local totalHeight = subContent and 100 or 80
-    notificationFrame:TweenSize(UDim2.new(0, 300, 0, totalHeight), "Out", "Quad", 0.3, true)
+    local totalHeight = subContent and 90 or 70
+    notificationFrame:TweenSize(UDim2.new(0, 320, 0, totalHeight), "Out", "Quad", 0.3, true)
+    notificationFrame:TweenPosition(UDim2.new(1, 10, 1, -10 - totalHeight), "Out", "Quad", 0.3, true)
     
     if duration then
         task.delay(duration, function()
-            notificationFrame:TweenSize(UDim2.new(0, 300, 0, 0), "Out", "Quad", 0.3, true, function()
-                notificationFrame:Destroy()
-            end)
+            notificationFrame:TweenSize(UDim2.new(0, 320, 0, 0), "Out", "Quad", 0.3, true)
+            notificationFrame:TweenPosition(UDim2.new(1, 10, 1, 10), "Out", "Quad", 0.3, true)
+            wait(0.3)
+            notificationFrame:Destroy()
         end)
     end
     
@@ -188,20 +209,34 @@ function Fluent:Dialog(options)
     })
     
     local corner = Create("UICorner", {
-        CornerRadius = UDim.new(0, 6),
+        CornerRadius = UDim.new(0, 8),
         Parent = dialogFrame
     })
     
     local stroke = Create("UIStroke", {
-        Color = Fluent.Themes[Fluent.CurrentTheme].Border,
-        Thickness = 1,
+        Color = Fluent.Themes[Fluent.CurrentTheme].Primary,
+        Thickness = 2,
         Parent = dialogFrame
+    })
+    
+    local glow = Create("ImageLabel", {
+        Name = "Glow",
+        Image = "rbxassetid://5028857084",
+        ImageColor3 = Fluent.Themes[Fluent.CurrentTheme].Primary,
+        ScaleType = Enum.ScaleType.Slice,
+        SliceCenter = Rect.new(24, 24, 276, 276),
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 20, 1, 20),
+        Position = UDim2.new(0.5, -10, 0.5, -10),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Parent = dialogFrame,
+        ZIndex = 109
     })
     
     local titleLabel = Create("TextLabel", {
         Name = "Title",
         Text = title,
-        Font = Enum.Font.GothamSemibold,
+        Font = Enum.Font.GothamBold,
         TextSize = 16,
         TextColor3 = Fluent.Themes[Fluent.CurrentTheme].Text,
         BackgroundTransparency = 1,
@@ -242,12 +277,12 @@ function Fluent:Dialog(options)
         local button = Create("TextButton", {
             Name = buttonInfo.Title .. "Button",
             Text = buttonInfo.Title,
-            Font = Enum.Font.Gotham,
+            Font = Enum.Font.GothamSemibold,
             TextSize = 14,
-            TextColor3 = Fluent.Themes[Fluent.CurrentTheme].Text,
+            TextColor3 = Color3.fromRGB(255, 255, 255),
             BackgroundColor3 = Fluent.Themes[Fluent.CurrentTheme].Primary,
             BorderSizePixel = 0,
-            Position = UDim2.new(0, buttonPadding + (buttonWidth + buttonPadding) * (i - 1), 0, 10),
+            Position = UDim2.new(0, buttonPadding + (buttonWidth + buttonPadding) * (i - 1), 0, 5),
             Size = UDim2.new(0, buttonWidth, 0, 30),
             Parent = buttonContainer,
             ZIndex = 112
@@ -258,20 +293,31 @@ function Fluent:Dialog(options)
             Parent = button
         })
         
+        local buttonGradient = Create("UIGradient", {
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Fluent.Themes[Fluent.CurrentTheme].Primary),
+                ColorSequenceKeypoint.new(1, Fluent.Themes[Fluent.CurrentTheme].Accent)
+            }),
+            Rotation = 90,
+            Parent = button
+        })
+        
         button.MouseEnter:Connect(function()
-            Tween(button, {BackgroundColor3 = Fluent.Themes[Fluent.CurrentTheme].Accent}, 0.1)
+            Tween(buttonGradient, {
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 140, 255)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 170, 255))
+                })
+            }, 0.1)
         end)
         
         button.MouseLeave:Connect(function()
-            Tween(button, {BackgroundColor3 = Fluent.Themes[Fluent.CurrentTheme].Primary}, 0.1)
-        end)
-        
-        button.MouseButton1Down:Connect(function()
-            Tween(button, {BackgroundColor3 = Fluent.Themes[Fluent.CurrentTheme].Pressed}, 0.1)
-        end)
-        
-        button.MouseButton1Up:Connect(function()
-            Tween(button, {BackgroundColor3 = Fluent.Themes[Fluent.CurrentTheme].Accent}, 0.1)
+            Tween(buttonGradient, {
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Fluent.Themes[Fluent.CurrentTheme].Primary),
+                    ColorSequenceKeypoint.new(1, Fluent.Themes[Fluent.CurrentTheme].Accent)
+                })
+            }, 0.1)
         end)
         
         button.MouseButton1Click:Connect(function()
@@ -306,15 +352,11 @@ function Fluent:CreateWindow(options)
         ZIndexBehavior = Enum.ZIndexBehavior.Global
     })
     
-    if acrylic then
-        -- Acrylic effect would go here (Roblox doesn't support real blur effects)
-    end
-    
+    -- Main window frame with shadow
     local mainFrame = Create("Frame", {
         Name = "MainWindow",
         BackgroundColor3 = Fluent.Themes[theme].Background,
-        BorderColor3 = Fluent.Themes[theme].Border,
-        BorderSizePixel = 1,
+        BorderSizePixel = 0,
         Position = UDim2.new(0.5, -size.X.Offset/2, 0.5, -size.Y.Offset/2),
         Size = size,
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -323,17 +365,27 @@ function Fluent:CreateWindow(options)
     })
     
     local mainCorner = Create("UICorner", {
-        CornerRadius = UDim.new(0, 6),
+        CornerRadius = UDim.new(0, 8),
         Parent = mainFrame
     })
     
-    local mainStroke = Create("UIStroke", {
-        Color = Fluent.Themes[theme].Border,
-        Thickness = 1,
-        Parent = mainFrame
+    -- Shadow effect
+    local shadow = Create("ImageLabel", {
+        Name = "Shadow",
+        Image = "rbxassetid://1316045217",
+        ImageColor3 = Fluent.Themes[theme].Shadow,
+        ImageTransparency = 0.8,
+        ScaleType = Enum.ScaleType.Slice,
+        SliceCenter = Rect.new(10, 10, 118, 118),
+        Size = UDim2.new(1, 30, 1, 30),
+        Position = UDim2.new(0.5, -15, 0.5, -15),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundTransparency = 1,
+        Parent = mainFrame,
+        ZIndex = 0
     })
     
-    -- Title bar
+    -- Title bar with gradient
     local titleBar = Create("Frame", {
         Name = "TitleBar",
         BackgroundColor3 = Fluent.Themes[theme].Foreground,
@@ -343,15 +395,26 @@ function Fluent:CreateWindow(options)
         ZIndex = 2
     })
     
-    local titleCorner = Create("UICorner", {
-        CornerRadius = UDim.new(0, 6),
+    local titleBarCorner = Create("UICorner", {
+        CornerRadius = UDim.new(0, 8),
         Parent = titleBar
     })
     
+    -- Gradient effect
+    local gradient = Create("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 40, 40)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 30))
+        }),
+        Rotation = 90,
+        Parent = titleBar
+    })
+    
+    -- Title and subtitle
     local titleLabel = Create("TextLabel", {
         Name = "Title",
         Text = title,
-        Font = Enum.Font.GothamSemibold,
+        Font = Enum.Font.GothamBold,
         TextSize = 16,
         TextColor3 = Fluent.Themes[theme].Text,
         BackgroundTransparency = 1,
@@ -376,7 +439,7 @@ function Fluent:CreateWindow(options)
         ZIndex = 3
     })
     
-    -- Close button
+    -- Close button with hover effect
     local closeButton = Create("TextButton", {
         Name = "CloseButton",
         Text = "×",
@@ -391,7 +454,17 @@ function Fluent:CreateWindow(options)
         ZIndex = 3
     })
     
+    closeButton.MouseEnter:Connect(function()
+        closeButton.TextColor3 = Color3.fromRGB(255, 80, 80)
+    end)
+    
+    closeButton.MouseLeave:Connect(function()
+        closeButton.TextColor3 = Fluent.Themes[theme].Text
+    end)
+    
     closeButton.MouseButton1Click:Connect(function()
+        Tween(mainFrame, {Size = UDim2.new(0, 0, 0, 0)}, 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        wait(0.2)
         uiParent:Destroy()
         Fluent.Unloaded = true
     end)
@@ -414,12 +487,20 @@ function Fluent:CreateWindow(options)
     local minimized = false
     local originalSize = size
     
+    minimizeButton.MouseEnter:Connect(function()
+        minimizeButton.TextColor3 = Fluent.Themes[theme].Accent
+    end)
+    
+    minimizeButton.MouseLeave:Connect(function()
+        minimizeButton.TextColor3 = Fluent.Themes[theme].Text
+    end)
+    
     minimizeButton.MouseButton1Click:Connect(function()
         minimized = not minimized
         if minimized then
-            mainFrame:TweenSize(UDim2.new(0, originalSize.X.Offset, 0, 40), "Out", "Quad", 0.2, true)
+            Tween(mainFrame, {Size = UDim2.new(0, originalSize.X.Offset, 0, 40)}, 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         else
-            mainFrame:TweenSize(originalSize, "Out", "Quad", 0.2, true)
+            Tween(mainFrame, {Size = originalSize}, 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         end
     end)
     
@@ -432,7 +513,7 @@ function Fluent:CreateWindow(options)
         end)
     end
     
-    -- Tab container
+    -- Tab container with subtle gradient
     local tabContainer = Create("Frame", {
         Name = "TabContainer",
         BackgroundColor3 = Fluent.Themes[theme].Foreground,
@@ -443,6 +524,15 @@ function Fluent:CreateWindow(options)
         ZIndex = 2
     })
     
+    local tabGradient = Create("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(45, 45, 45)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 35, 35))
+        }),
+        Rotation = 90,
+        Parent = tabContainer
+    })
+    
     local tabListLayout = Create("UIListLayout", {
         SortOrder = Enum.SortOrder.LayoutOrder,
         Padding = UDim.new(0, 5),
@@ -450,9 +540,9 @@ function Fluent:CreateWindow(options)
     })
     
     local tabPadding = Create("UIPadding", {
-        PaddingTop = UDim.new(0, 5),
-        PaddingLeft = UDim.new(0, 5),
-        PaddingRight = UDim.new(0, 5),
+        PaddingTop = UDim.new(0, 10),
+        PaddingLeft = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 10),
         Parent = tabContainer
     })
     
@@ -521,7 +611,7 @@ function Fluent:CreateWindow(options)
         local tabButton = Create("TextButton", {
             Name = title .. "Tab",
             Text = "  " .. title,
-            Font = Enum.Font.Gotham,
+            Font = Enum.Font.GothamSemibold,
             TextSize = 14,
             TextColor3 = Fluent.Themes[theme].Text,
             BackgroundColor3 = Fluent.Themes[theme].Foreground,
@@ -532,12 +622,12 @@ function Fluent:CreateWindow(options)
             TextXAlignment = Enum.TextXAlignment.Left
         })
         
-        local tabCorner = Create("UICorner", {
-            CornerRadius = UDim.new(0, 4),
+        local tabButtonCorner = Create("UICorner", {
+            CornerRadius = UDim.new(0, 6),
             Parent = tabButton
         })
         
-        local tabStroke = Create("UIStroke", {
+        local tabButtonStroke = Create("UIStroke", {
             Color = Fluent.Themes[theme].Border,
             Thickness = 1,
             Parent = tabButton
@@ -549,8 +639,8 @@ function Fluent:CreateWindow(options)
             BorderSizePixel = 0,
             Size = UDim2.new(1, 0, 1, 0),
             CanvasSize = UDim2.new(0, 0, 0, 0),
-            ScrollBarThickness = 3,
-            ScrollBarImageColor3 = Fluent.Themes[theme].Secondary,
+            ScrollBarThickness = 5,
+            ScrollBarImageColor3 = Fluent.Themes[theme].ScrollBar,
             Visible = false,
             Parent = contentPages,
             ZIndex = 3
@@ -558,20 +648,20 @@ function Fluent:CreateWindow(options)
         
         local pageListLayout = Create("UIListLayout", {
             SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0, 10),
+            Padding = UDim.new(0, 15),
             Parent = tabPage
         })
         
         local pagePadding = Create("UIPadding", {
-            PaddingTop = UDim.new(0, 10),
-            PaddingLeft = UDim.new(0, 10),
-            PaddingRight = UDim.new(0, 10),
+            PaddingTop = UDim.new(0, 15),
+            PaddingLeft = UDim.new(0, 15),
+            PaddingRight = UDim.new(0, 15),
             Parent = tabPage
         })
         
         -- Auto-resize canvas
         pageListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            tabPage.CanvasSize = UDim2.new(0, 0, 0, pageListLayout.AbsoluteContentSize.Y + 20)
+            tabPage.CanvasSize = UDim2.new(0, 0, 0, pageListLayout.AbsoluteContentSize.Y + 30)
         end)
         
         -- Tab selection
@@ -581,22 +671,37 @@ function Fluent:CreateWindow(options)
                     tab.Page.Visible = false
                 end
                 if tab.Button then
-                    tab.Button.BackgroundColor3 = Fluent.Themes[theme].Foreground
+                    Tween(tab.Button, {
+                        BackgroundColor3 = Fluent.Themes[theme].Foreground,
+                        TextColor3 = Fluent.Themes[theme].Text
+                    }, 0.2)
                 end
             end
+            
             tabPage.Visible = true
-            tabButton.BackgroundColor3 = Fluent.Themes[theme].Primary
+            Tween(tabButton, {
+                BackgroundColor3 = Fluent.Themes[theme].TabActive,
+                TextColor3 = Color3.fromRGB(255, 255, 255)
+            }, 0.2)
         end)
         
         -- Hover effects
         tabButton.MouseEnter:Connect(function()
-            if tabPage.Visible then return end
-            Tween(tabButton, {BackgroundColor3 = Fluent.Themes[theme].Hover}, 0.1)
+            if not tabPage.Visible then
+                Tween(tabButton, {
+                    BackgroundColor3 = Fluent.Themes[theme].TabHover,
+                    TextColor3 = Fluent.Themes[theme].Text
+                }, 0.2)
+            end
         end)
         
         tabButton.MouseLeave:Connect(function()
-            if tabPage.Visible then return end
-            Tween(tabButton, {BackgroundColor3 = Fluent.Themes[theme].Foreground}, 0.1)
+            if not tabPage.Visible then
+                Tween(tabButton, {
+                    BackgroundColor3 = Fluent.Themes[theme].Foreground,
+                    TextColor3 = Fluent.Themes[theme].Text
+                }, 0.2)
+            end
         end)
         
         -- Tab API
@@ -620,7 +725,7 @@ function Fluent:CreateWindow(options)
             local titleLabel = Create("TextLabel", {
                 Name = "Title",
                 Text = title,
-                Font = Enum.Font.GothamSemibold,
+                Font = Enum.Font.GothamBold,
                 TextSize = 16,
                 TextColor3 = Fluent.Themes[theme].Text,
                 BackgroundTransparency = 1,
@@ -635,7 +740,7 @@ function Fluent:CreateWindow(options)
                 Text = content,
                 Font = Enum.Font.Gotham,
                 TextSize = 14,
-                TextColor3 = Fluent.Themes[theme].Text,
+                TextColor3 = Fluent.Themes[theme].SubText,
                 BackgroundTransparency = 1,
                 Position = UDim2.new(0, 0, 0, 25),
                 Size = UDim2.new(1, 0, 0, 20),
@@ -646,7 +751,7 @@ function Fluent:CreateWindow(options)
             })
             
             -- Auto-size based on content
-            local textSize = GetTextSize(content, Enum.Font.Gotham, 14, Vector2.new(tabPage.AbsoluteSize.X - 40, 10000))
+            local textSize = TextService:GetTextSize(content, 14, Enum.Font.Gotham, Vector2.new(tabPage.AbsoluteSize.X - 40, 10000))
             paragraphFrame.Size = UDim2.new(1, -20, 0, 25 + textSize.Y + 10)
             contentLabel.Size = UDim2.new(1, 0, 0, textSize.Y)
             
@@ -662,7 +767,7 @@ function Fluent:CreateWindow(options)
             local buttonFrame = Create("Frame", {
                 Name = "ButtonFrame",
                 BackgroundTransparency = 1,
-                Size = UDim2.new(1, -20, 0, description == "" and 40 or 60),
+                Size = UDim2.new(1, -20, 0, description == "" and 50 or 70),
                 Parent = tabPage,
                 ZIndex = 4
             })
@@ -670,10 +775,10 @@ function Fluent:CreateWindow(options)
             local button = Create("TextButton", {
                 Name = "Button",
                 Text = title,
-                Font = Enum.Font.Gotham,
+                Font = Enum.Font.GothamSemibold,
                 TextSize = 14,
-                TextColor3 = Fluent.Themes[theme].Text,
-                BackgroundColor3 = Fluent.Themes[theme].Foreground,
+                TextColor3 = Color3.fromRGB(255, 255, 255),
+                BackgroundColor3 = Fluent.Themes[theme].Primary,
                 BorderSizePixel = 0,
                 Size = UDim2.new(1, 0, 0, 40),
                 Position = description == "" and UDim2.new(0, 0, 0, 0) or UDim2.new(0, 0, 0, 20),
@@ -682,13 +787,22 @@ function Fluent:CreateWindow(options)
             })
             
             local buttonCorner = Create("UICorner", {
-                CornerRadius = UDim.new(0, 4),
+                CornerRadius = UDim.new(0, 6),
                 Parent = button
             })
             
             local buttonStroke = Create("UIStroke", {
                 Color = Fluent.Themes[theme].Border,
                 Thickness = 1,
+                Parent = button
+            })
+            
+            local buttonGradient = Create("UIGradient", {
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Fluent.Themes[theme].Primary),
+                    ColorSequenceKeypoint.new(1, Fluent.Themes[theme].Accent)
+                }),
+                Rotation = 90,
                 Parent = button
             })
             
@@ -709,19 +823,29 @@ function Fluent:CreateWindow(options)
             
             -- Hover effects
             button.MouseEnter:Connect(function()
-                Tween(button, {BackgroundColor3 = Fluent.Themes[theme].Hover}, 0.1)
+                Tween(buttonGradient, {
+                    Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 140, 255)),
+                        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 170, 255))
+                    })
+                }, 0.1)
             end)
             
             button.MouseLeave:Connect(function()
-                Tween(button, {BackgroundColor3 = Fluent.Themes[theme].Foreground}, 0.1)
+                Tween(buttonGradient, {
+                    Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Fluent.Themes[theme].Primary),
+                        ColorSequenceKeypoint.new(1, Fluent.Themes[theme].Accent)
+                    })
+                }, 0.1)
             end)
             
             button.MouseButton1Down:Connect(function()
-                Tween(button, {BackgroundColor3 = Fluent.Themes[theme].Pressed}, 0.1)
+                Tween(button, {Size = UDim2.new(0.98, 0, 0, 38)}, 0.1)
             end)
             
             button.MouseButton1Up:Connect(function()
-                Tween(button, {BackgroundColor3 = Fluent.Themes[theme].Hover}, 0.1)
+                Tween(button, {Size = UDim2.new(1, 0, 0, 40)}, 0.1)
             end)
             
             button.MouseButton1Click:Connect(function()
@@ -793,17 +917,36 @@ function Fluent:CreateWindow(options)
                 Parent = toggleInner
             })
             
+            local toggleGradient = Create("UIGradient", {
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, default and Fluent.Themes[theme].Primary or Fluent.Themes[theme].Secondary),
+                    ColorSequenceKeypoint.new(1, default and Fluent.Themes[theme].Accent or Fluent.Themes[theme].Secondary)
+                }),
+                Rotation = 90,
+                Parent = toggleInner
+            })
+            
             local function updateToggle(value)
                 Fluent.Options[id].Value = value
                 if value then
                     Tween(toggleInner, {
-                        Position = UDim2.new(1, -15, 0.5, -10),
-                        BackgroundColor3 = Fluent.Themes[theme].Primary
+                        Position = UDim2.new(1, -15, 0.5, -10)
+                    }, 0.2)
+                    Tween(toggleGradient, {
+                        Color = ColorSequence.new({
+                            ColorSequenceKeypoint.new(0, Fluent.Themes[theme].Primary),
+                            ColorSequenceKeypoint.new(1, Fluent.Themes[theme].Accent)
+                        })
                     }, 0.2)
                 else
                     Tween(toggleInner, {
-                        Position = UDim2.new(0, 5, 0.5, -10),
-                        BackgroundColor3 = Fluent.Themes[theme].Secondary
+                        Position = UDim2.new(0, 5, 0.5, -10)
+                    }, 0.2)
+                    Tween(toggleGradient, {
+                        Color = ColorSequence.new({
+                            ColorSequenceKeypoint.new(0, Fluent.Themes[theme].Secondary),
+                            ColorSequenceKeypoint.new(1, Fluent.Themes[theme].Secondary)
+                        })
                     }, 0.2)
                 end
                 callback(value)
@@ -832,10 +975,10 @@ function Fluent:CreateWindow(options)
             local id = options.Id or "Slider"
             local title = options.Title or "Slider"
             local description = options.Description or ""
-            local default = options.Default or 2
+            local default = options.Default or 50
             local min = options.Min or 0
-            local max = options.Max or 5
-            local rounding = options.Rounding or 1
+            local max = options.Max or 100
+            local rounding = options.Rounding or 0
             local callback = options.Callback or function() end
             
             Fluent.Options[id] = {Value = default, Type = "Slider"}
@@ -907,12 +1050,21 @@ function Fluent:CreateWindow(options)
                 Parent = sliderFill
             })
             
+            local sliderFillGradient = Create("UIGradient", {
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Fluent.Themes[theme].Primary),
+                    ColorSequenceKeypoint.new(1, Fluent.Themes[theme].Accent)
+                }),
+                Rotation = 90,
+                Parent = sliderFill
+            })
+            
             local sliderThumb = Create("Frame", {
                 Name = "SliderThumb",
                 BackgroundColor3 = Fluent.Themes[theme].Text,
                 BorderSizePixel = 0,
-                Position = UDim2.new((default - min) / (max - min), -10, 0.5, -10),
-                Size = UDim2.new(0, 20, 0, 20),
+                Position = UDim2.new((default - min) / (max - min), -5, 0.5, -5),
+                Size = UDim2.new(0, 10, 0, 10),
                 AnchorPoint = Vector2.new(0.5, 0.5),
                 Parent = sliderTrack,
                 ZIndex = 7
@@ -942,7 +1094,7 @@ function Fluent:CreateWindow(options)
             local function updateSlider(value)
                 local percent = math.clamp((value - min) / (max - min), 0, 1)
                 sliderFill.Size = UDim2.new(percent, 0, 1, 0)
-                sliderThumb.Position = UDim2.new(percent, -10, 0.5, -10)
+                sliderThumb.Position = UDim2.new(percent, -5, 0.5, -5)
                 local rounded = Round(value, rounding)
                 valueLabel.Text = tostring(rounded)
                 Fluent.Options[id].Value = rounded
@@ -1034,7 +1186,7 @@ function Fluent:CreateWindow(options)
             })
             
             local dropdownButtonCorner = Create("UICorner", {
-                CornerRadius = UDim.new(0, 4),
+                CornerRadius = UDim.new(0, 6),
                 Parent = dropdownButton
             })
             
@@ -1065,8 +1217,8 @@ function Fluent:CreateWindow(options)
                 Position = UDim2.new(0, 0, 1, 5),
                 Size = UDim2.new(1, 0, 0, 0),
                 CanvasSize = UDim2.new(0, 0, 0, 0),
-                ScrollBarThickness = 3,
-                ScrollBarImageColor3 = Fluent.Themes[theme].Secondary,
+                ScrollBarThickness = 5,
+                ScrollBarImageColor3 = Fluent.Themes[theme].ScrollBar,
                 Visible = false,
                 Parent = dropdownButton,
                 ZIndex = 10
@@ -1084,7 +1236,7 @@ function Fluent:CreateWindow(options)
             })
             
             local dropdownListCorner = Create("UICorner", {
-                CornerRadius = UDim.new(0, 4),
+                CornerRadius = UDim.new(0, 6),
                 Parent = dropdownList
             })
             
@@ -1120,7 +1272,7 @@ function Fluent:CreateWindow(options)
                 })
                 
                 if multi then
-                    local selected = false
+                    local selected = Fluent.Options[id].Value[option] or false
                     
                     optionButton.MouseButton1Click:Connect(function()
                         selected = not selected
@@ -1145,6 +1297,7 @@ function Fluent:CreateWindow(options)
                         dropdownButton.Text = option
                         Fluent.Options[id].Value = option
                         dropdownList.Visible = false
+                        dropdownArrow.Text = "▼"
                         callback(option)
                     end)
                 end
@@ -1263,7 +1416,7 @@ function Fluent:CreateWindow(options)
             })
             
             local colorButtonCorner = Create("UICorner", {
-                CornerRadius = UDim.new(0, 4),
+                CornerRadius = UDim.new(0, 6),
                 Parent = colorButton
             })
             
@@ -1375,13 +1528,13 @@ function Fluent:CreateWindow(options)
             })
             
             local colorPickerCorner = Create("UICorner", {
-                CornerRadius = UDim.new(0, 4),
+                CornerRadius = UDim.new(0, 8),
                 Parent = colorPickerPopup
             })
             
             local colorPickerStroke = Create("UIStroke", {
-                Color = Fluent.Themes[theme].Border,
-                Thickness = 1,
+                Color = Fluent.Themes[theme].Primary,
+                Thickness = 2,
                 Parent = colorPickerPopup
             })
             
@@ -1571,7 +1724,7 @@ function Fluent:CreateWindow(options)
             })
             
             local keybindButtonCorner = Create("UICorner", {
-                CornerRadius = UDim.new(0, 4),
+                CornerRadius = UDim.new(0, 6),
                 Parent = keybindButton
             })
             
@@ -1699,7 +1852,7 @@ function Fluent:CreateWindow(options)
             })
             
             local inputBoxCorner = Create("UICorner", {
-                CornerRadius = UDim.new(0, 4),
+                CornerRadius = UDim.new(0, 6),
                 Parent = inputBox
             })
             
@@ -1818,7 +1971,7 @@ function SaveManager:BuildConfigSection(tab)
                     makefolder(SaveManager.Folder)
                 end
                 
-                writefile(SaveManager.Folder .. "/" .. configName.Value .. ".json", game:GetService("HttpService"):JSONEncode(config))
+                writefile(SaveManager.Folder .. "/" .. configName.Value .. ".json", HttpService:JSONEncode(config))
                 SaveManager.Library:Notify({
                     Title = "Config Saved",
                     Content = "Configuration has been saved as " .. configName.Value .. ".",
@@ -1839,7 +1992,7 @@ function SaveManager:BuildConfigSection(tab)
         Callback = function()
             if isfolder and readfile then
                 local success, err = pcall(function()
-                    local config = game:GetService("HttpService"):JSONDecode(readfile(SaveManager.Folder .. "/" .. configName.Value .. ".json"))
+                    local config = HttpService:JSONDecode(readfile(SaveManager.Folder .. "/" .. configName.Value .. ".json"))
                     
                     for id, value in pairs(config) do
                         if SaveManager.Library.Options[id] then
@@ -1876,7 +2029,7 @@ function SaveManager:BuildConfigSection(tab)
         Callback = function()
             if isfolder and readfile then
                 local success, err = pcall(function()
-                    local config = game:GetService("HttpService"):JSONDecode(readfile(SaveManager.Folder .. "/autoload.json"))
+                    local config = HttpService:JSONDecode(readfile(SaveManager.Folder .. "/autoload.json"))
                     
                     for id, value in pairs(config) do
                         if SaveManager.Library.Options[id] then
